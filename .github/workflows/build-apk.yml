@@ -1,9 +1,12 @@
-name: Build Android APK (SecureVault)
+name: Build & Publish Android APK (SecureVault)
 
 on:
   push:
     branches: [ main, master ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -48,13 +51,34 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Copy & Rename APK
+      - name: Prepare Named APK
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/SecureVault.apk || true
+          cp android/app/build/outputs/apk/debug/app-debug.apk ./SecureVault.apk
 
-      - name: Upload Installable APK Artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: SecureVault-Android-APK
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: ./SecureVault.apk
           retention-days: 30
+
+      - name: Publish Public GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: "SecureVault v1.0.0 (Android APK)"
+          body: |
+            ## 🛡️ SecureVault — Personal Encrypted Credential Vault
+            
+            ### 📱 Android Installation:
+            Download **[SecureVault.apk](https://github.com/Sabarish204/SecureVault/releases/download/v1.0.0/SecureVault.apk)** and tap install on your Android device!
+            
+            ### ✨ Features:
+            - **Zero-Knowledge Architecture**: AES-256-GCM + PBKDF2 client-side encryption.
+            - **50+ Indian Banks**: Searchable NetBanking directory & direct launch links.
+            - **100% Offline**: Local-first storage with zero cloud leaks.
+            - **Progressive Web App**: Mobile-first glassmorphic dark interface.
+          files: |
+            ./SecureVault.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

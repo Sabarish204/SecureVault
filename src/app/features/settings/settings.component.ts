@@ -18,12 +18,6 @@ import { PwaService } from '../../core/services/pwa.service';
         <p class="page-desc">Manage cryptographic preferences and local persistence.</p>
       </div>
 
-      <!-- Test Data Warning Banner -->
-      <div class="test-data-banner">
-        <span class="material-symbols-outlined" style="font-size: 16px;">verified_user</span>
-        <span>TEST MODE: Only use fake credentials for security testing</span>
-      </div>
-
       <!-- Security Invariants Overview -->
       <div class="settings-card glass-panel-elevated">
         <div class="card-title-row">

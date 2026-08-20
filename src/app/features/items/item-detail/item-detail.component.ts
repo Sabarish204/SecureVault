@@ -45,11 +45,7 @@ import {
         </div>
       </div>
 
-      <!-- Test Data Warning -->
-      <div class="test-data-banner">
-        <span class="material-symbols-outlined" style="font-size: 16px;">verified</span>
-        <span>SAMPLE TEST DATA ONLY — NEVER REAL SECRETS</span>
-      </div>
+       
 
       <!-- Main Item Container -->
       <div class="detail-card glass-panel-elevated">

@@ -35,7 +35,7 @@ export class BankDirectoryService {
     {
       id: 3,
       name: 'Punjab National Bank (PNB)',
-      loginUrl: 'https://netpnb.com',
+      loginUrl: 'https://iretail.pnb.bank.in/corp/AuthenticationController?FORMSGROUP_ID__=AuthenticationFG&__START_TRAN_FLAG__=Y&__FG_BUTTONS__=LOAD&ACTION.LOAD=Y&AuthenticationFG.LOGIN_FLAG=1&BANK_ID=024',
       category: 'Public Sector',
       shortCode: 'PNB'
     },

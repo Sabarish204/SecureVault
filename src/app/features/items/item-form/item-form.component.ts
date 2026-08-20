@@ -37,12 +37,7 @@ import {
           <span>Cancel</span>
         </a>
       </div>
-
-      <!-- Test Data Warning Banner -->
-      <div class="test-data-banner">
-        <span class="material-symbols-outlined" style="font-size: 16px;">shield</span>
-        <span>TEST DATA: Enter only dummy/fake credentials (e.g. 4111..., 123, 1234)</span>
-      </div>
+ 
 
       <div class="form-card glass-panel-elevated">
         <div class="form-header">

@@ -20,10 +20,7 @@ import { VaultCategory } from '../../shared/models';
           <p class="page-desc">Locally encrypted credentials, banking accounts & payment cards</p>
         </div>
 
-        <div class="test-data-banner">
-          <span class="material-symbols-outlined" style="font-size: 16px;">shield</span>
-          <span>TEST DATA ONLY</span>
-        </div>
+         
       </section>
 
       <!-- Category Summary Counters Grid -->

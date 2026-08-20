@@ -31,11 +31,7 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
           </p>
         </div>
 
-        <!-- Security Test Data Notice -->
-        <div class="test-data-banner">
-          <span class="material-symbols-outlined" style="font-size: 16px;">verified_user</span>
-          <span>Security Notice: Use ONLY test/dummy credentials</span>
-        </div>
+         
 
         <!-- Setup Form (First-Time User) -->
         <form *ngIf="isSetupMode()" [formGroup]="setupForm" (ngSubmit)="onSetupSubmit()" class="auth-form">

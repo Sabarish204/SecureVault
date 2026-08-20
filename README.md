@@ -99,7 +99,17 @@ The output will be generated in `dist/secure-vault/`.
 
 ---
 
-## 6. Security Notice & Test Data Policy
+## 6. 📱 Android APK Installation
 
-> [!WARNING]
-> **SAMPLE TEST DATA ONLY**: When testing or developing SecureVault, never input real banking credentials, real payment card numbers, or real PINs. Always use dummy test data (e.g. `demo.user`, `NOT-A-REAL-PASSWORD`, `4111111111111111`, CVV `123`, PIN `1234`).
+You can download and install the official native Android build of **SecureVault**:
+
+### Direct Download Link
+* **Latest GitHub Release**: [https://github.com/Sabarish204/SecureVault/releases](https://github.com/Sabarish204/SecureVault/releases)
+* **Direct APK Download**: [Download SecureVault.apk](https://github.com/Sabarish204/SecureVault/releases/latest/download/SecureVault.apk)
+
+### Installation Steps on Android:
+1. Download the **`SecureVault.apk`** file on your Android smartphone.
+2. Tap the downloaded file in your notification bar or file manager.
+3. If prompted with *"Install unknown apps"*, tap **Settings** and toggle on **Allow from this source**.
+4. Tap **Install** and launch **SecureVault**!
+

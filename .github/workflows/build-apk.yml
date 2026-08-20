@@ -17,38 +17,34 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
 
-      - name: Setup Java JDK
+      - name: Setup Java JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '17'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+          java-version: '21'
 
       - name: Accept Android SDK Licenses
-        run: yes | sdkmanager --licenses || true
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || yes | sdkmanager --licenses || true
 
-      - name: Install Node Dependencies
-        run: npm ci
+      - name: Install Dependencies
+        run: npm install
 
-      - name: Build Angular Production Web App
+      - name: Build Angular Web App
         run: npm run build
 
-      - name: Add Android Platform & Sync Web Assets
+      - name: Sync Capacitor Android
         run: |
-          npx cap add android || true
           npx cap sync android
 
-      - name: Build Android Debug APK with Gradle
+      - name: Build Android APK with Gradle
         working-directory: ./android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Copy & Rename Output APK
+      - name: Copy & Rename APK
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/SecureVault.apk || true
 

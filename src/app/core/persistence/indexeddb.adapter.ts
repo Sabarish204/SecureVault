@@ -122,4 +122,33 @@ export class IndexedDbAdapter {
       tx.onerror = () => reject(tx.error);
     });
   }
+
+  /**
+   * Atomically restores vault metadata and records in a single IndexedDB transaction.
+   * If any insertion fails, the entire transaction is rolled back automatically.
+   */
+  async restoreAtomic(metadata: VaultMetadata, records: StoredVaultRecord[]): Promise<void> {
+    const db = await this.openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([STORE_META, STORE_RECORDS], 'readwrite');
+      const metaStore = tx.objectStore(STORE_META);
+      const recordStore = tx.objectStore(STORE_RECORDS);
+
+      // 1. Clear existing stores
+      metaStore.clear();
+      recordStore.clear();
+
+      // 2. Put metadata
+      metaStore.put(metadata);
+
+      // 3. Put all records
+      for (const record of records) {
+        recordStore.put(record);
+      }
+
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(new Error('Atomic restore transaction was aborted.'));
+    });
+  }
 }

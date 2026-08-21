@@ -29,11 +29,13 @@ import { VaultCategory } from '../../../shared/models';
         <div class="search-input-box">
           <span class="material-symbols-outlined search-icon">search</span>
           <input
+            id="vaultSearchInput"
             type="text"
             placeholder="Search items by name, bank, username, or card..."
             [ngModel]="vaultState.searchQuery()"
             (ngModelChange)="vaultState.setSearchQuery($event)"
             class="filter-search-input font-sans"
+            aria-label="Search credentials, cards, and banking items"
           />
           <button
             *ngIf="vaultState.searchQuery()"

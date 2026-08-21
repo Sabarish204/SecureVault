@@ -6,13 +6,15 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { VaultStateService } from '../../core/state/vault-state.service';
 import { VaultStorageService } from '../../core/persistence/vault-storage.service';
 import { PwaService } from '../../core/services/pwa.service';
-
 import { AppUpdateService } from '../../core/update/app-update.service';
+import { VaultBackupService } from '../../core/backup/vault-backup.service';
+import { RestoreConfirmDialogComponent } from '../../shared/components/restore-confirm-dialog/restore-confirm-dialog.component';
+import { BackupInspectionResult } from '../../shared/models/backup.model';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatButtonModule],
+  imports: [CommonModule, FormsModule, MatButtonModule, RestoreConfirmDialogComponent],
   template: `
     <div class="settings-wrapper animate-fade-in">
       <div class="settings-header">
@@ -156,19 +158,75 @@ import { AppUpdateService } from '../../core/update/app-update.service';
         </div>
       </div>
 
-      <!-- Backup Export -->
+      <!-- Backup & Restore -->
       <div class="settings-card glass-panel">
         <div class="card-title-row">
-          <span class="material-symbols-outlined icon-accent">cloud_download</span>
-          <h2 class="card-title">Encrypted Backup</h2>
+          <span class="material-symbols-outlined icon-accent">settings_backup_restore</span>
+          <h2 class="card-title">Encrypted Backup & Restore</h2>
         </div>
-        <p class="card-desc">Export your encrypted vault data file. The backup remains fully encrypted with your master password.</p>
+        <p class="card-desc">Safely backup and restore your entire vault data in an encrypted, password-protected <code>.svbackup</code> file format.</p>
 
-        <button type="button" class="btn-secondary" (click)="exportEncryptedVault()">
-          <span class="material-symbols-outlined">download</span>
-          <span>Export Encrypted JSON</span>
-        </button>
+        <div class="backup-actions-grid">
+          <!-- Export Backup -->
+          <div class="backup-subcard">
+            <div class="subcard-header">
+              <span class="material-symbols-outlined" style="color: var(--primary);">cloud_download</span>
+              <span class="subcard-title">Export Backup</span>
+            </div>
+            <p class="subcard-desc">Create a secure AES-256-GCM encrypted backup package with zero plaintext secrets.</p>
+            <button
+              type="button"
+              class="btn-primary"
+              (click)="onExportBackup()"
+              [disabled]="backupService.isExporting()"
+            >
+              <span class="material-symbols-outlined" [class.animate-spin]="backupService.isExporting()">
+                {{ backupService.isExporting() ? 'sync' : 'download' }}
+              </span>
+              <span>{{ backupService.isExporting() ? 'Encrypting...' : 'Export .svbackup File' }}</span>
+            </button>
+          </div>
+
+          <!-- Restore Backup -->
+          <div class="backup-subcard">
+            <div class="subcard-header">
+              <span class="material-symbols-outlined" style="color: var(--warning);">cloud_upload</span>
+              <span class="subcard-title">Restore Backup</span>
+            </div>
+            <p class="subcard-desc">Restore your cards, banking details, and credentials from a previous <code>.svbackup</code> file.</p>
+            
+            <input
+              #backupFileInput
+              type="file"
+              (change)="onBackupFileSelected($event)"
+              accept=".svbackup,.json,application/octet-stream"
+              style="display: none;"
+            />
+            
+            <button
+              type="button"
+              class="btn-secondary"
+              (click)="backupFileInput.click()"
+              [disabled]="backupService.isImporting()"
+            >
+              <span class="material-symbols-outlined" [class.animate-spin]="backupService.isImporting()">
+                {{ backupService.isImporting() ? 'sync' : 'upload_file' }}
+              </span>
+              <span>{{ backupService.isImporting() ? 'Reading File...' : 'Select .svbackup File' }}</span>
+            </button>
+          </div>
+        </div>
       </div>
+
+      <!-- Restore Confirmation Modal Dialog -->
+      <app-restore-confirm-dialog
+        *ngIf="pendingInspection()"
+        [inspection]="pendingInspection()!"
+        [isRestoring]="isRestoringBackup()"
+        [errorMessage]="restoreErrorMessage()"
+        (restore)="onConfirmRestore($event)"
+        (cancel)="onCancelRestore()"
+      ></app-restore-confirm-dialog>
 
       <!-- Danger Zone: Reset Vault -->
       <div class="settings-card glass-panel danger-zone">
@@ -176,7 +234,7 @@ import { AppUpdateService } from '../../core/update/app-update.service';
           <span class="material-symbols-outlined" style="color: var(--danger);">warning</span>
           <h2 class="card-title" style="color: var(--danger);">Danger Zone</h2>
         </div>
-        <p class="card-desc">Erase all encrypted records and reset your master password from this browser instance.</p>
+        <p class="card-desc">Erase all encrypted records and reset your master password from this device.</p>
 
         <button type="button" class="btn-danger" (click)="resetVault()">
           <span class="material-symbols-outlined">delete_forever</span>
@@ -369,6 +427,42 @@ import { AppUpdateService } from '../../core/update/app-update.service';
       color: #fde68a;
     }
 
+    .backup-actions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-top: 6px;
+    }
+
+    .backup-subcard {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .subcard-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .subcard-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .subcard-desc {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+      flex: 1;
+    }
+
     .danger-zone {
       border-color: rgba(239, 68, 68, 0.3);
       background: rgba(239, 68, 68, 0.04);
@@ -379,8 +473,14 @@ export class SettingsComponent {
   readonly vaultState = inject(VaultStateService);
   readonly pwa = inject(PwaService);
   readonly appUpdate = inject(AppUpdateService);
+  readonly backupService = inject(VaultBackupService);
   private readonly storage = inject(VaultStorageService);
   private readonly snackBar = inject(MatSnackBar);
+
+  readonly pendingInspection = signal<BackupInspectionResult | null>(null);
+  readonly isRestoringBackup = signal<boolean>(false);
+  readonly restoreErrorMessage = signal<string>('');
+  private pendingBackupPasswordAttempt: string = '';
 
   async onManualUpdateCheck(): Promise<void> {
     const hasUpdate = await this.appUpdate.checkForUpdates(true);
@@ -400,36 +500,99 @@ export class SettingsComponent {
     });
   }
 
-  async exportEncryptedVault(): Promise<void> {
+  async onExportBackup(): Promise<void> {
     try {
-      const meta = await this.storage.getMetadata();
-      const records = await this.vaultState.items();
-      const exportBlob = {
-        vaultVersion: '1.0',
-        exportedAt: new Date().toISOString(),
-        metadata: meta,
-        itemCount: records.length,
-        notice: 'ENCRYPTED ZERO-KNOWLEDGE BACKUP. REQUIRES MASTER PASSWORD TO DECRYPT.'
-      };
+      const password = prompt('Enter your Master Password to encrypt and sign this backup:');
+      if (!password) {
+        return;
+      }
 
-      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportBlob, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute('href', dataStr);
-      downloadAnchor.setAttribute('download', `secure_vault_backup_${Date.now()}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-
-      this.snackBar.open('Encrypted backup exported successfully.', 'Close', {
-        duration: 3000,
+      const result = await this.backupService.exportBackup(password);
+      this.snackBar.open(`Backup exported: ${result.filename} (${result.recordCount} records)`, 'Close', {
+        duration: 4000,
         panelClass: 'snack-success'
       });
-    } catch {
-      this.snackBar.open('Export failed.', 'Close', {
-        duration: 3000,
+    } catch (err: any) {
+      this.snackBar.open(err.message || 'Export failed.', 'Close', {
+        duration: 3500,
         panelClass: 'snack-error'
       });
     }
+  }
+
+  async onBackupFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) {
+      return;
+    }
+
+    const file = input.files[0];
+    try {
+      const text = await file.text();
+      const passwordAttempt = prompt('Enter the Master Password for this backup file:');
+      if (!passwordAttempt) {
+        input.value = '';
+        return;
+      }
+
+      this.pendingBackupPasswordAttempt = passwordAttempt;
+      const inspection = await this.backupService.inspectBackupFile(text, passwordAttempt);
+
+      if (!inspection.isValid) {
+        this.snackBar.open(inspection.errorMessage || 'Invalid backup file or incorrect password.', 'Close', {
+          duration: 4000,
+          panelClass: 'snack-error'
+        });
+        input.value = '';
+        return;
+      }
+
+      this.restoreErrorMessage.set('');
+      this.pendingInspection.set(inspection);
+    } catch (err: any) {
+      this.snackBar.open('Failed to read backup file: ' + err.message, 'Close', {
+        duration: 3500,
+        panelClass: 'snack-error'
+      });
+    } finally {
+      input.value = '';
+    }
+  }
+
+  async onConfirmRestore(options: { createSafetyBackup: boolean }): Promise<void> {
+    const inspection = this.pendingInspection();
+    if (!inspection || !inspection.decryptedPayload) {
+      return;
+    }
+
+    this.isRestoringBackup.set(true);
+    this.restoreErrorMessage.set('');
+
+    try {
+      const result = await this.backupService.restoreBackup(
+        inspection.decryptedPayload,
+        this.pendingBackupPasswordAttempt,
+        { createSafetyBackup: options.createSafetyBackup }
+      );
+
+      this.pendingInspection.set(null);
+      this.pendingBackupPasswordAttempt = '';
+
+      this.snackBar.open(`Vault successfully restored (${result.restoredCount} items recovered).`, 'Close', {
+        duration: 4500,
+        panelClass: 'snack-success'
+      });
+    } catch (err: any) {
+      this.restoreErrorMessage.set(err.message || 'Restoration failed.');
+    } finally {
+      this.isRestoringBackup.set(false);
+    }
+  }
+
+  onCancelRestore(): void {
+    this.pendingInspection.set(null);
+    this.pendingBackupPasswordAttempt = '';
+    this.restoreErrorMessage.set('');
   }
 
   async resetVault(): Promise<void> {

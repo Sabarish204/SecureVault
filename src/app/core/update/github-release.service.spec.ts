@@ -64,14 +64,14 @@ describe('GitHubReleaseService', () => {
         json: async () => mockRelease
       } as any);
 
-      const release = await service.getLatestRelease('Sabarish204/SecureVault');
+      const result = await service.getLatestRelease('Sabarish204/SecureVault');
 
-      expect(release).not.toBeNull();
-      expect(release?.tagName).toBe('v1.0.8');
-      expect(release?.versionName).toBe('1.0.8');
-      expect(release?.versionCode).toBe(8);
-      expect(release?.apkFileName).toBe('SecureVault-v1.0.8.apk');
-      expect(release?.sha256DownloadUrl).toBe('https://example.com/sha256');
+      expect(result.release).not.toBeNull();
+      expect(result.release?.tagName).toBe('v1.0.8');
+      expect(result.release?.versionName).toBe('1.0.8');
+      expect(result.release?.versionCode).toBe(8);
+      expect(result.release?.apkFileName).toBe('SecureVault-v1.0.8.apk');
+      expect(result.release?.sha256DownloadUrl).toBe('https://example.com/sha256');
     });
 
     it('should ignore draft releases and return null', async () => {
@@ -92,8 +92,8 @@ describe('GitHubReleaseService', () => {
         json: async () => mockRelease
       } as any);
 
-      const release = await service.getLatestRelease();
-      expect(release).toBeNull();
+      const result = await service.getLatestRelease();
+      expect(result.release).toBeNull();
     });
 
     it('should ignore prereleases and return null', async () => {
@@ -114,15 +114,16 @@ describe('GitHubReleaseService', () => {
         json: async () => mockRelease
       } as any);
 
-      const release = await service.getLatestRelease();
-      expect(release).toBeNull();
+      const result = await service.getLatestRelease();
+      expect(result.release).toBeNull();
     });
 
-    it('should gracefully handle network error and return null', async () => {
+    it('should gracefully handle network error and return error message', async () => {
       globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error (offline)'));
 
-      const release = await service.getLatestRelease();
-      expect(release).toBeNull();
+      const result = await service.getLatestRelease();
+      expect(result.release).toBeNull();
+      expect(result.error).toBeTruthy();
     });
   });
 });

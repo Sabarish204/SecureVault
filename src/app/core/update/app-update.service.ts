@@ -4,6 +4,14 @@ import { GitHubReleaseService, AppReleaseInfo } from './github-release.service';
 import { UpdateCacheService } from './update-cache.service';
 import { isUpdateAvailable } from './version-comparator';
 
+export type UpdateCheckStatus = 'UPDATE_AVAILABLE' | 'UP_TO_DATE' | 'CHECK_FAILED';
+
+export interface UpdateCheckResult {
+  status: UpdateCheckStatus;
+  message?: string;
+  release?: AppReleaseInfo | null;
+}
+
 interface NativeAppVersion {
   appId: string;
   versionCode: number;
@@ -72,12 +80,14 @@ export class AppUpdateService {
    * Checks GitHub Releases for a newer version.
    * Completely resilient: failures fail silently without disrupting the user.
    */
-  async checkForUpdates(force: boolean = false): Promise<boolean> {
-    if (this.isChecking()) return false;
+  async checkForUpdates(force: boolean = false): Promise<UpdateCheckResult> {
+    if (this.isChecking()) {
+      return { status: 'CHECK_FAILED', message: 'Update check is already in progress.' };
+    }
 
     // Check throttling cache
     if (!this.cacheService.shouldCheckForUpdate(force)) {
-      return false;
+      return { status: 'UP_TO_DATE' };
     }
 
     this.isChecking.set(true);
@@ -85,15 +95,19 @@ export class AppUpdateService {
 
     try {
       const installed = await this.detectInstalledVersion();
-      const latest = await this.githubService.getLatestRelease();
+      const result = await this.githubService.getLatestRelease();
 
-      this.cacheService.recordCheck(latest);
+      this.cacheService.recordCheck(result.release);
 
-      if (!latest) {
+      if (!result.release) {
         this.updateAvailable.set(false);
-        return false;
+        return {
+          status: 'CHECK_FAILED',
+          message: result.error || 'Could not connect to GitHub Releases.'
+        };
       }
 
+      const latest = result.release;
       const available = isUpdateAvailable(
         { versionName: installed.versionName, versionCode: installed.versionCode },
         { versionName: latest.versionName, versionCode: latest.versionCode }
@@ -107,14 +121,14 @@ export class AppUpdateService {
         if (force || !this.cacheService.isDismissed(latest.versionName)) {
           this.isModalOpen.set(true);
         }
-        return true;
+        return { status: 'UPDATE_AVAILABLE', release: latest };
       } else {
         this.updateAvailable.set(false);
         this.currentRelease.set(null);
-        return false;
+        return { status: 'UP_TO_DATE', release: latest };
       }
-    } catch {
-      return false;
+    } catch (err: any) {
+      return { status: 'CHECK_FAILED', message: err.message || 'Update check failed.' };
     } finally {
       this.isChecking.set(false);
     }
@@ -191,7 +205,7 @@ export class AppUpdateService {
 
       this.downloadStatusText.set('Verifying package integrity...');
 
-      // Combine chunks into single ArrayBuffer
+      // Combine chunks into single Uint8Array
       const fullBuffer = new Uint8Array(receivedBytes);
       let offset = 0;
       for (const chunk of chunks) {
@@ -201,7 +215,7 @@ export class AppUpdateService {
 
       // 3. Cryptographic SHA-256 Checksum Validation (if published)
       if (release.sha256DownloadUrl) {
-        const isValid = await this.verifySha256Checksum(fullBuffer.buffer, release.sha256DownloadUrl);
+        const isValid = await this.verifySha256Checksum(fullBuffer.buffer as ArrayBuffer, release.sha256DownloadUrl);
         if (!isValid) {
           throw new Error('APK checksum verification failed. The downloaded file may be corrupted.');
         }

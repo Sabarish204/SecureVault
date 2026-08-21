@@ -483,11 +483,16 @@ export class SettingsComponent {
   private pendingBackupPasswordAttempt: string = '';
 
   async onManualUpdateCheck(): Promise<void> {
-    const hasUpdate = await this.appUpdate.checkForUpdates(true);
-    if (!hasUpdate) {
+    const result = await this.appUpdate.checkForUpdates(true);
+    if (result.status === 'UP_TO_DATE') {
       this.snackBar.open(`SecureVault is up to date (v${this.appUpdate.installedVersion()}).`, 'Close', {
         duration: 3000,
         panelClass: 'snack-info'
+      });
+    } else if (result.status === 'CHECK_FAILED') {
+      this.snackBar.open(result.message || 'Unable to check for updates. Please check your internet connection.', 'Close', {
+        duration: 4000,
+        panelClass: 'snack-error'
       });
     }
   }

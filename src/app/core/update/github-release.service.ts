@@ -33,24 +33,25 @@ export interface AppReleaseInfo {
   sha256DownloadUrl?: string;
 }
 
+export interface GitHubReleaseResult {
+  release: AppReleaseInfo | null;
+  error?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class GitHubReleaseService {
   private readonly DEFAULT_REPO = 'Sabarish204/SecureVault';
-  private readonly API_TIMEOUT_MS = 8000;
+  private readonly API_TIMEOUT_MS = 10000;
 
   /**
    * Fetches the latest published stable release from GitHub.
-   * Completely offline-resilient: catches all errors and fails silently.
+   * Uses cache-busting and simple CORS headers to avoid preflight issues in mobile WebViews.
    */
-  async getLatestRelease(repo: string = this.DEFAULT_REPO): Promise<AppReleaseInfo | null> {
-    // 1. Fast offline check
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      return null;
-    }
-
-    const endpoint = `https://api.github.com/repos/${repo}/releases/latest`;
+  async getLatestRelease(repo: string = this.DEFAULT_REPO): Promise<GitHubReleaseResult> {
+    const timestamp = Date.now();
+    const endpoint = `https://api.github.com/repos/${repo}/releases/latest?_t=${timestamp}`;
 
     try {
       const controller = new AbortController();
@@ -59,32 +60,35 @@ export class GitHubReleaseService {
       const response = await fetch(endpoint, {
         method: 'GET',
         headers: {
-          Accept: 'application/vnd.github+json'
+          'Accept': 'application/json'
         },
+        cache: 'no-store',
         signal: controller.signal
       });
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        // Non-200 responses (e.g. 404, 403 rate limit) handled silently
-        return null;
+        if (response.status === 403) {
+          return { release: null, error: 'GitHub API rate limit reached. Please try again later.' };
+        }
+        return { release: null, error: `GitHub API returned HTTP ${response.status}.` };
       }
 
       const data = (await response.json()) as GitHubReleaseDto;
 
-      // 2. Validate release is valid, stable, and published
+      // Validate release is valid, stable, and published
       if (!data || data.draft || data.prerelease || !data.tag_name) {
-        return null;
+        return { release: null, error: 'No stable published release found.' };
       }
 
-      // 3. Locate the primary APK asset
+      // Locate primary APK asset
       const apkAsset = this.selectApkAsset(data.assets || []);
       if (!apkAsset) {
-        return null;
+        return { release: null, error: 'No Android APK found in latest release.' };
       }
 
-      // 4. Locate optional SHA-256 integrity asset
+      // Locate optional SHA-256 integrity asset
       const sha256Asset = this.selectSha256Asset(data.assets || [], apkAsset.name);
 
       const versionName = data.tag_name.replace(/^v/i, '').trim();
@@ -99,7 +103,7 @@ export class GitHubReleaseService {
         }
       }
 
-      return {
+      const release: AppReleaseInfo = {
         tagName: data.tag_name,
         versionName,
         versionCode,
@@ -111,9 +115,14 @@ export class GitHubReleaseService {
         apkSizeBytes: apkAsset.size || 0,
         sha256DownloadUrl: sha256Asset?.browser_download_url
       };
-    } catch {
-      // Catch network drops, timeouts, DNS failures, and CORS issues silently
-      return null;
+
+      return { release };
+    } catch (err: any) {
+      const isAbort = err.name === 'AbortError';
+      return {
+        release: null,
+        error: isAbort ? 'Connection timed out while checking GitHub.' : (err.message || 'Network connection error.')
+      };
     }
   }
 

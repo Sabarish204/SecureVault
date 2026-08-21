@@ -89,12 +89,13 @@ import { PwaService } from '../../../core/services/pwa.service';
       left: 0;
       right: 0;
       z-index: 100;
+      padding-top: var(--safe-area-top);
       border-radius: 0;
       border-top: none;
       border-left: none;
       border-right: none;
       border-bottom: 1px solid var(--border-subtle);
-      background: rgba(9, 13, 22, 0.85);
+      background: rgba(9, 13, 22, 0.95);
       backdrop-filter: var(--glass-blur);
       -webkit-backdrop-filter: var(--glass-blur);
     }

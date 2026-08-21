@@ -58,16 +58,20 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Prepare Named APK
+      - name: Prepare Named APK & Integrity Checksums
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk ./SecureVault-v1.0.${{ github.run_number }}.apk
           cp android/app/build/outputs/apk/debug/app-debug.apk ./SecureVault.apk
+          sha256sum ./SecureVault-v1.0.${{ github.run_number }}.apk | awk '{print $1}' > ./SecureVault-v1.0.${{ github.run_number }}.apk.sha256
+          sha256sum ./SecureVault.apk | awk '{print $1}' > ./SecureVault.apk.sha256
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: SecureVault-Android-APK-v1.0.${{ github.run_number }}
-          path: ./SecureVault*.apk
+          path: |
+            ./SecureVault*.apk
+            ./SecureVault*.sha256
           retention-days: 30
 
       - name: Publish Public GitHub Release
@@ -85,9 +89,12 @@ jobs:
             - **Commit**: `${{ github.sha }}`
             - **Build Number**: `${{ github.run_number }}`
             - **Local-First Zero-Knowledge Architecture**: AES-256-GCM + PBKDF2 encryption
+            - **In-App Auto-Update System**: Automatic update detection & integrity verification
             - **Indian Bank Directory**: 50+ banks with official NetBanking portals
           files: |
             ./SecureVault-v1.0.${{ github.run_number }}.apk
+            ./SecureVault-v1.0.${{ github.run_number }}.apk.sha256
             ./SecureVault.apk
+            ./SecureVault.apk.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

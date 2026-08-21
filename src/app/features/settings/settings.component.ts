@@ -7,6 +7,8 @@ import { VaultStateService } from '../../core/state/vault-state.service';
 import { VaultStorageService } from '../../core/persistence/vault-storage.service';
 import { PwaService } from '../../core/services/pwa.service';
 
+import { AppUpdateService } from '../../core/update/app-update.service';
+
 @Component({
   selector: 'app-settings',
   standalone: true,
@@ -95,6 +97,28 @@ import { PwaService } from '../../core/services/pwa.service';
             10 Minutes
           </button>
         </div>
+      </div>
+
+      <!-- App Updates & Version Info -->
+      <div class="settings-card glass-panel">
+        <div class="card-title-row">
+          <span class="material-symbols-outlined icon-accent">system_update</span>
+          <h2 class="card-title">App Version & Updates</h2>
+        </div>
+        <p class="card-desc">Check GitHub Releases for the latest stable build and security patches.</p>
+
+        <div class="pwa-status-box">
+          <span class="material-symbols-outlined status-icon" style="color: var(--primary);">info</span>
+          <div class="pwa-meta">
+            <span class="pwa-status-title">Current Installed Version</span>
+            <span class="pwa-status-desc font-mono">v{{ appUpdate.installedVersion() }} (Build {{ appUpdate.installedCode() }})</span>
+          </div>
+        </div>
+
+        <button type="button" class="btn-secondary" (click)="onManualUpdateCheck()" [disabled]="appUpdate.isChecking()">
+          <span class="material-symbols-outlined" [class.animate-spin]="appUpdate.isChecking()">sync</span>
+          <span>{{ appUpdate.isChecking() ? 'Checking GitHub...' : 'Check for Updates' }}</span>
+        </button>
       </div>
 
       <!-- Progressive Web App (PWA) & Offline Info -->
@@ -354,8 +378,19 @@ import { PwaService } from '../../core/services/pwa.service';
 export class SettingsComponent {
   readonly vaultState = inject(VaultStateService);
   readonly pwa = inject(PwaService);
+  readonly appUpdate = inject(AppUpdateService);
   private readonly storage = inject(VaultStorageService);
   private readonly snackBar = inject(MatSnackBar);
+
+  async onManualUpdateCheck(): Promise<void> {
+    const hasUpdate = await this.appUpdate.checkForUpdates(true);
+    if (!hasUpdate) {
+      this.snackBar.open(`SecureVault is up to date (v${this.appUpdate.installedVersion()}).`, 'Close', {
+        duration: 3000,
+        panelClass: 'snack-info'
+      });
+    }
+  }
 
   setAutoLock(minutes: number): void {
     this.vaultState.autoLockMinutes.set(minutes);

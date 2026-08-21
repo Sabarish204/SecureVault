@@ -363,13 +363,13 @@ import {
               id="cardNumber"
               type="text"
               formControlName="cardNumber"
-              placeholder="e.g. 4111111111111111 (Test Card)"
+              placeholder="e.g. 4111 2222 3333 4444"
               class="form-input font-mono"
               maxlength="23"
             />
             <div *ngIf="cardForm.get('cardNumber')?.invalid && cardForm.get('cardNumber')?.touched" class="field-error">
               <span *ngIf="cardForm.get('cardNumber')?.errors?.['invalidCardFormat']">Must be 13-19 numeric digits.</span>
-              <span *ngIf="cardForm.get('cardNumber')?.errors?.['luhnChecksumFailed']">Luhn card checksum validation failed.</span>
+              <span *ngIf="cardForm.get('cardNumber')?.errors?.['luhnChecksumFailed']">Invalid card number. Please check the digits and try again.</span>
               <span *ngIf="cardForm.get('cardNumber')?.errors?.['required']">Card number is required.</span>
             </div>
           </div>

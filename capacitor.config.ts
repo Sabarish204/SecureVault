@@ -6,6 +6,13 @@ const config: CapacitorConfig = {
   webDir: 'dist/secure-vault/browser',
   server: {
     androidScheme: 'https'
+  },
+  plugins: {
+    StatusBar: {
+      overlaysWebView: false,
+      style: 'DARK',
+      backgroundColor: '#090d16'
+    }
   }
 };
 

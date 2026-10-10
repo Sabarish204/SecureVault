@@ -94,7 +94,7 @@ describe('UnlockComponent', () => {
 
     it('should update unlockForm when digits are typed into textboxes', () => {
       const inputs = fixture.nativeElement.querySelectorAll('.pin-box');
-      
+
       inputs[0].value = '1';
       inputs[0].dispatchEvent(new Event('input'));
       expect(component.pinDigits[0]).toBe('1');
@@ -151,7 +151,7 @@ describe('UnlockComponent', () => {
 
     it('should distribute pasted 4-digit PIN across textboxes and auto-submit', async () => {
       const unlockSpy = vi.spyOn(component, 'onUnlockSubmit');
-      
+
       const pasteEvent = {
         preventDefault: vi.fn(),
         clipboardData: {

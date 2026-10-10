@@ -11,10 +11,5 @@
   width: 100%;
   position: relative;
   z-index: 1;
-}
-
-@media (max-width: 768px) {
-  .main-content {
-    padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
-  }
+  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
 }

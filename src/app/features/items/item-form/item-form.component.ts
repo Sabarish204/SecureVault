@@ -321,7 +321,7 @@ import {
           >
             <mat-spinner *ngIf="isSubmitting()" diameter="20" color="accent"></mat-spinner>
             <span *ngIf="!isSubmitting()">
-              {{ isEditMode() ? 'Save Changes' : 'Encrypt & Save to Vault' }}
+              {{ isEditMode() ? 'Save Changes' : 'Save to Vault' }}
             </span>
           </button>
         </form>
@@ -454,7 +454,7 @@ import {
           >
             <mat-spinner *ngIf="isSubmitting()" diameter="20" color="accent"></mat-spinner>
             <span *ngIf="!isSubmitting()">
-              {{ isEditMode() ? 'Save Changes' : 'Encrypt & Save to Vault' }}
+              {{ isEditMode() ? 'Save Changes' : 'Save to Vault' }}
             </span>
           </button>
         </form>

@@ -25,8 +25,7 @@ import { ClipboardSafetyService } from '../../../core/services/clipboard-safety.
 
       <!-- Card Nickname / Bank Name -->
       <div class="card-bank-info">
-        <span class="card-nickname">{{ nickname || 'Personal Card' }}</span>
-        <span class="test-label">TEST DATA</span>
+        <span class="card-nickname">{{ nickname || 'Personal Card' }}</span>        
       </div>
 
       <!-- Card Number with Mask & Actions -->

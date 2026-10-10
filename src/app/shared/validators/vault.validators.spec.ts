@@ -83,4 +83,44 @@ describe('VaultValidators', () => {
       expect(validator(form)).toEqual({ invalidExpiryMonth: true });
     });
   });
+
+  describe('masterPassword', () => {
+    const validator = VaultValidators.masterPassword();
+
+    it('should pass for valid 4-digit PIN', () => {
+      expect(validator(new FormControl('1234'))).toBeNull();
+      expect(validator(new FormControl('0000'))).toBeNull();
+      expect(validator(new FormControl('9876'))).toBeNull();
+    });
+
+    it('should fail for fewer than 4 digits', () => {
+      expect(validator(new FormControl('123'))).toEqual({
+        invalidMasterPassword: true,
+        requiredLength: 4
+      });
+    });
+
+    it('should fail for more than 4 digits', () => {
+      expect(validator(new FormControl('12345'))).toEqual({
+        invalidMasterPassword: true,
+        requiredLength: 4
+      });
+    });
+
+    it('should fail for non-numeric characters', () => {
+      expect(validator(new FormControl('abcd'))).toEqual({
+        invalidMasterPassword: true,
+        requiredLength: 4
+      });
+      expect(validator(new FormControl('12a4'))).toEqual({
+        invalidMasterPassword: true,
+        requiredLength: 4
+      });
+    });
+
+    it('should return null for empty value (delegating to required validator)', () => {
+      expect(validator(new FormControl(''))).toBeNull();
+    });
+  });
 });
+

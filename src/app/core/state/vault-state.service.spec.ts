@@ -67,4 +67,14 @@ describe('VaultStateService', () => {
     expect(service.items()).toEqual([]);
     expect(routerMock.navigate).toHaveBeenCalledWith(['/unlock']);
   });
+
+  it('should change master password to a 4-digit PIN when unlocked', async () => {
+    await service.setupVault('1234');
+    expect(service.isUnlocked()).toBe(true);
+
+    const result = await service.changeMasterPassword('5678');
+    expect(result).toBe(true);
+    expect(service.isUnlocked()).toBe(true);
+    expect(storageMock.saveMetadata).toHaveBeenCalled();
+  });
 });

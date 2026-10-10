@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { CryptoService } from '../crypto/crypto.service';
 import { VaultStorageService } from '../persistence/vault-storage.service';
+import { BiometricService } from '../services/biometric.service';
 import {
   BaseVaultItem,
   DecryptedVaultItem,
@@ -20,6 +21,7 @@ export class VaultStateService {
   private readonly snackBar = inject(MatSnackBar);
   private readonly crypto = inject(CryptoService);
   private readonly storage = inject(VaultStorageService);
+  private readonly biometric = inject(BiometricService);
 
   // Volatile in-memory key reference (never persisted)
   private masterKey: CryptoKey | null = null;
@@ -100,11 +102,6 @@ export class VaultStateService {
       this.isInitialized.set(true);
       this.status.set('UNLOCKED');
       this.items.set([]);
-
-      this.snackBar.open('Vault created and unlocked successfully!', 'Close', {
-        duration: 3000,
-        panelClass: 'snack-success'
-      });
       await this.router.navigate(['/dashboard']);
       return true;
     } catch {
@@ -138,11 +135,6 @@ export class VaultStateService {
 
       // Load item metadata list
       await this.refreshItems();
-
-      this.snackBar.open('Vault unlocked.', 'Close', {
-        duration: 2500,
-        panelClass: 'snack-success'
-      });
       await this.router.navigate(['/dashboard']);
       return true;
     } catch {
@@ -165,13 +157,6 @@ export class VaultStateService {
     this.items.set([]);
     this.searchQuery.set('');
     this.selectedCategory.set('ALL');
-
-    if (reason) {
-      this.snackBar.open(reason, 'Close', {
-        duration: 3000,
-        panelClass: 'snack-info'
-      });
-    }
 
     await this.router.navigate(['/unlock']);
   }
@@ -223,6 +208,7 @@ export class VaultStateService {
 
   async resetEntireVault(): Promise<void> {
     await this.storage.resetAll();
+    await this.biometric.clearCredentials();
     this.masterKey = null;
     this.vaultMetadata = null;
     this.isInitialized.set(false);
@@ -233,6 +219,80 @@ export class VaultStateService {
       duration: 3000,
       panelClass: 'snack-info'
     });
+  }
+
+  /**
+   * Updates master password by re-encrypting all vault items with newly derived key
+   */
+  async changeMasterPassword(newMasterPassword: string): Promise<boolean> {
+    if (!this.masterKey || this.status() !== 'UNLOCKED') {
+      this.snackBar.open('Vault must be unlocked to change master password.', 'Close', {
+        duration: 3500,
+        panelClass: 'snack-error'
+      });
+      return false;
+    }
+
+    this.isLoading.set(true);
+    try {
+      // 1. Fetch and decrypt all existing items using current master key
+      const recordHeaders = await this.storage.getRecordList();
+      const decryptedRecords: {
+        id: string;
+        category: VaultCategory;
+        title: string;
+        subtitle: string;
+        payload: ItemPayload;
+        createdAt: number;
+      }[] = [];
+
+      for (const h of recordHeaders) {
+        const item = await this.storage.getDecryptedItem(h.id, this.masterKey);
+        if (item) {
+          decryptedRecords.push({
+            id: item.id,
+            category: item.category,
+            title: item.title,
+            subtitle: item.subtitle,
+            payload: item.payload,
+            createdAt: item.createdAt
+          });
+        }
+      }
+
+      // 2. Generate new metadata and new master key for the new password
+      const { metadata: newMetadata, masterKey: newMasterKey } = await this.crypto.createVaultMetadata(
+        newMasterPassword,
+        this.autoLockMinutes()
+      );
+
+      // 3. Re-encrypt all records with the new master key
+      for (const rec of decryptedRecords) {
+        await this.storage.saveItem(rec, newMasterKey);
+      }
+
+      // 4. Save and update metadata
+      await this.storage.saveMetadata(newMetadata);
+      this.vaultMetadata = newMetadata;
+      this.masterKey = newMasterKey;
+
+      // 5. Update Keystore biometric credential if enabled
+      await this.biometric.updateStoredPin(newMasterPassword);
+
+      this.snackBar.open('Master PIN updated successfully!', 'Close', {
+        duration: 3000,
+        panelClass: 'snack-success'
+      });
+      return true;
+    } catch {
+      this.snackBar.open('Failed to update master PIN.', 'Close', {
+        duration: 3500,
+        panelClass: 'snack-error'
+      });
+      return false;
+    } finally {
+      this.isLoading.set(false);
+    }
   }
 
   setSearchQuery(q: string): void {

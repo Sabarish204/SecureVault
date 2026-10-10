@@ -70,3 +70,17 @@ export interface RestoreOptions {
   createSafetyBackup?: boolean;
   overwriteCurrentVault?: boolean;
 }
+
+export interface ExportBackupResult {
+  success: boolean;
+  filename: string;
+  recordCount: number;
+  uri?: string;
+  displayPath: string;
+  isNative: boolean;
+  fileSizeBytes: number;
+  createdAt: string;
+  backupId: string;
+  envelope?: SecureVaultBackupEnvelope;
+}
+

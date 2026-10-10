@@ -235,6 +235,77 @@ export class VaultStateService {
     });
   }
 
+  /**
+   * Updates master password by re-encrypting all vault items with newly derived key
+   */
+  async changeMasterPassword(newMasterPassword: string): Promise<boolean> {
+    if (!this.masterKey || this.status() !== 'UNLOCKED') {
+      this.snackBar.open('Vault must be unlocked to change master password.', 'Close', {
+        duration: 3500,
+        panelClass: 'snack-error'
+      });
+      return false;
+    }
+
+    this.isLoading.set(true);
+    try {
+      // 1. Fetch and decrypt all existing items using current master key
+      const recordHeaders = await this.storage.getRecordList();
+      const decryptedRecords: {
+        id: string;
+        category: VaultCategory;
+        title: string;
+        subtitle: string;
+        payload: ItemPayload;
+        createdAt: number;
+      }[] = [];
+
+      for (const h of recordHeaders) {
+        const item = await this.storage.getDecryptedItem(h.id, this.masterKey);
+        if (item) {
+          decryptedRecords.push({
+            id: item.id,
+            category: item.category,
+            title: item.title,
+            subtitle: item.subtitle,
+            payload: item.payload,
+            createdAt: item.createdAt
+          });
+        }
+      }
+
+      // 2. Generate new metadata and new master key for the new password
+      const { metadata: newMetadata, masterKey: newMasterKey } = await this.crypto.createVaultMetadata(
+        newMasterPassword,
+        this.autoLockMinutes()
+      );
+
+      // 3. Re-encrypt all records with the new master key
+      for (const rec of decryptedRecords) {
+        await this.storage.saveItem(rec, newMasterKey);
+      }
+
+      // 4. Save and update metadata
+      await this.storage.saveMetadata(newMetadata);
+      this.vaultMetadata = newMetadata;
+      this.masterKey = newMasterKey;
+
+      this.snackBar.open('Master PIN updated successfully!', 'Close', {
+        duration: 3000,
+        panelClass: 'snack-success'
+      });
+      return true;
+    } catch {
+      this.snackBar.open('Failed to update master PIN.', 'Close', {
+        duration: 3500,
+        panelClass: 'snack-error'
+      });
+      return false;
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
   setSearchQuery(q: string): void {
     this.searchQuery.set(q);
   }

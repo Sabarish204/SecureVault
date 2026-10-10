@@ -21,12 +21,12 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
             </span>
           </div>
           <h1 class="hero-title">
-            {{ isSetupMode() ? 'Create Master Password' : 'Unlock SecureVault' }}
+            {{ isSetupMode() ? 'Create 4-Digit Master PIN' : 'Unlock SecureVault' }}
           </h1>
           <p class="hero-subtitle">
             {{ isSetupMode() 
-              ? 'Your master password derives a 256-bit AES-GCM encryption key using PBKDF2 with 600,000 iterations. It is never stored or transmitted.' 
-              : 'Enter your master password to decrypt and access your personal credentials.' 
+              ? 'Your 4-digit PIN derives a 256-bit AES-GCM encryption key using PBKDF2 with 600,000 iterations. Quick to enter and easy to remember.' 
+              : 'Enter your 4-digit master PIN to decrypt and access your personal credentials.' 
             }}
           </p>
         </div>
@@ -36,15 +36,18 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
         <!-- Setup Form (First-Time User) -->
         <form *ngIf="isSetupMode()" [formGroup]="setupForm" (ngSubmit)="onSetupSubmit()" class="auth-form">
           <div class="form-group">
-            <label class="form-label" for="newPassword">Master Password</label>
+            <label class="form-label" for="newPassword">Master Password (4-Digit PIN)</label>
             <div class="input-container">
               <input
                 id="newPassword"
                 [type]="showNewPassword() ? 'text' : 'password'"
                 formControlName="masterPassword"
-                placeholder="Enter strong master password (min 8 chars)"
+                placeholder="Enter 4-digit PIN (e.g. 1234)"
                 class="vault-input font-mono"
                 autocomplete="new-password"
+                maxlength="4"
+                inputmode="numeric"
+                pattern="[0-9]*"
               />
               <button
                 type="button"
@@ -57,6 +60,9 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
                 </span>
               </button>
             </div>
+            <div *ngIf="setupForm.get('masterPassword')?.invalid && (setupForm.get('masterPassword')?.touched || setupForm.get('masterPassword')?.dirty)" class="form-error">
+              Must be exactly 4 digits (0-9).
+            </div>
             <!-- Password Strength Bar -->
             <div class="strength-bar-wrapper">
               <div class="strength-meter" [ngClass]="passwordStrengthClass()"></div>
@@ -65,15 +71,18 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="confirmPassword">Confirm Master Password</label>
+            <label class="form-label" for="confirmPassword">Confirm Master PIN</label>
             <div class="input-container">
               <input
                 id="confirmPassword"
                 [type]="showConfirmPassword() ? 'text' : 'password'"
                 formControlName="confirmPassword"
-                placeholder="Re-enter master password"
+                placeholder="Re-enter 4-digit PIN"
                 class="vault-input font-mono"
                 autocomplete="new-password"
+                maxlength="4"
+                inputmode="numeric"
+                pattern="[0-9]*"
               />
               <button
                 type="button"
@@ -87,7 +96,7 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
               </button>
             </div>
             <div *ngIf="setupForm.errors?.['mismatch'] && setupForm.get('confirmPassword')?.touched" class="form-error">
-              Passwords do not match.
+              PINs do not match.
             </div>
           </div>
 
@@ -104,15 +113,16 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
         <!-- Unlock Form (Existing Vault) -->
         <form *ngIf="!isSetupMode()" [formGroup]="unlockForm" (ngSubmit)="onUnlockSubmit()" class="auth-form">
           <div class="form-group">
-            <label class="form-label" for="unlockPassword">Master Password</label>
+            <label class="form-label" for="unlockPassword">Master Password / PIN</label>
             <div class="input-container">
               <input
                 id="unlockPassword"
                 [type]="showUnlockPassword() ? 'text' : 'password'"
                 formControlName="masterPassword"
-                placeholder="Enter your master password"
+                placeholder="Enter 4-digit PIN"
                 class="vault-input font-mono"
                 autocomplete="current-password"
+                inputmode="numeric"
                 autofocus
               />
               <button
@@ -387,18 +397,19 @@ export class UnlockComponent implements OnInit {
   passwordStrengthLabel(): string {
     const val = this.setupForm?.get('masterPassword')?.value || '';
     if (!val) return 'Empty';
-    if (val.length < 8) return 'Weak';
-    const hasNum = /\d/.test(val);
-    const hasSpecial = /[^A-Za-z0-9]/.test(val);
-    const hasUpper = /[A-Z]/.test(val);
-    if (val.length >= 12 && hasNum && hasSpecial && hasUpper) return 'Strong';
-    if (val.length >= 8 && (hasNum || hasSpecial)) return 'Good';
-    return 'Fair';
+    if (!/^\d+$/.test(val)) return 'Digits only';
+    if (val.length < 4) return `${val.length}/4 digits`;
+    if (/^(.)\1{3}$/.test(val)) return 'Fair (Repeated)';
+    if (['0123', '1234', '2345', '3456', '4567', '5678', '6789'].includes(val)) return 'Fair (Sequential)';
+    return 'Ready (4 Digits)';
   }
 
   passwordStrengthClass(): string {
-    const label = this.passwordStrengthLabel().toLowerCase();
-    return label;
+    const val = this.setupForm?.get('masterPassword')?.value || '';
+    if (!val) return '';
+    if (!/^\d+$/.test(val) || val.length < 4) return 'weak';
+    if (/^(.)\1{3}$/.test(val) || ['0123', '1234', '2345', '3456', '4567', '5678', '6789'].includes(val)) return 'fair';
+    return 'strong';
   }
 
   async onSetupSubmit(): Promise<void> {
@@ -423,7 +434,7 @@ export class UnlockComponent implements OnInit {
     try {
       const success = await this.vaultState.unlockVault(password);
       if (!success) {
-        this.errorMessage.set('Incorrect master password. Please try again.');
+        this.errorMessage.set('Incorrect master PIN or password. Please try again.');
       }
     } finally {
       this.isSubmitting.set(false);

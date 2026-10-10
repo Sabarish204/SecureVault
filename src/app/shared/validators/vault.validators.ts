@@ -114,16 +114,16 @@ export class VaultValidators {
   }
 
   /**
-   * Validates master password strength (minimum 8 chars, mix of classes)
+   * Validates master password (must be exactly 4 digits for easy recall and PIN-style login)
    */
   static masterPassword(): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
       if (!control.value) {
         return null;
       }
-      const val = String(control.value);
-      if (val.length < 8) {
-        return { minLength: { requiredLength: 8, actualLength: val.length } };
+      const val = String(control.value).trim();
+      if (!/^\d{4}$/.test(val)) {
+        return { invalidMasterPassword: true, requiredLength: 4 };
       }
       return null;
     };

@@ -37,20 +37,26 @@ describe('UnlockComponent', () => {
     expect(component.isSetupMode()).toBe(true);
   });
 
-  it('should require minimum 8 characters for master password', () => {
-    component.setupForm.controls['masterPassword'].setValue('short');
+  it('should require exactly 4 digits for master password', () => {
+    component.setupForm.controls['masterPassword'].setValue('123');
     expect(component.setupForm.controls['masterPassword'].valid).toBe(false);
 
-    component.setupForm.controls['masterPassword'].setValue('ValidMasterPass123!');
+    component.setupForm.controls['masterPassword'].setValue('abcd');
+    expect(component.setupForm.controls['masterPassword'].valid).toBe(false);
+
+    component.setupForm.controls['masterPassword'].setValue('12345');
+    expect(component.setupForm.controls['masterPassword'].valid).toBe(false);
+
+    component.setupForm.controls['masterPassword'].setValue('1234');
     expect(component.setupForm.controls['masterPassword'].valid).toBe(true);
   });
 
   it('should validate matching confirmation password', () => {
-    component.setupForm.controls['masterPassword'].setValue('ValidMasterPass123!');
-    component.setupForm.controls['confirmPassword'].setValue('Mismatch123!');
+    component.setupForm.controls['masterPassword'].setValue('1234');
+    component.setupForm.controls['confirmPassword'].setValue('5678');
     expect(component.setupForm.valid).toBe(false);
 
-    component.setupForm.controls['confirmPassword'].setValue('ValidMasterPass123!');
+    component.setupForm.controls['confirmPassword'].setValue('1234');
     expect(component.setupForm.valid).toBe(true);
   });
 });

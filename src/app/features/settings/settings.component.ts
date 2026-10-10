@@ -101,6 +101,104 @@ import { BackupInspectionResult } from '../../shared/models/backup.model';
         </div>
       </div>
 
+      <!-- Master Password / PIN Management -->
+      <div class="settings-card glass-panel">
+        <div class="card-title-row">
+          <span class="material-symbols-outlined icon-accent">pin</span>
+          <h2 class="card-title">Master Password / PIN</h2>
+        </div>
+        <p class="card-desc">Your 4-digit PIN secures your vault. You can change your 4-digit PIN at any time.</p>
+
+        <div *ngIf="!showChangePinForm()" class="pin-status-box">
+          <div class="pin-meta">
+            <span class="pin-status-title">Vault Master PIN</span>
+            <span class="pin-status-desc">4-Digit Master PIN active</span>
+          </div>
+          <button type="button" class="btn-secondary" (click)="openChangePinForm()">
+            <span class="material-symbols-outlined">edit</span>
+            <span>Change 4-Digit PIN</span>
+          </button>
+        </div>
+
+        <div *ngIf="showChangePinForm()" class="change-pin-box">
+          <div class="form-group">
+            <label class="form-label" for="newSettingsPin">New 4-Digit PIN</label>
+            <div class="input-container">
+              <input
+                id="newSettingsPin"
+                [type]="showNewPin() ? 'text' : 'password'"
+                [(ngModel)]="newPinValue"
+                placeholder="Enter 4-digit PIN (e.g. 1234)"
+                class="vault-input font-mono"
+                maxlength="4"
+                inputmode="numeric"
+                pattern="[0-9]*"
+              />
+              <button
+                type="button"
+                class="visibility-btn"
+                (click)="showNewPin.set(!showNewPin())"
+                aria-label="Toggle PIN visibility"
+              >
+                <span class="material-symbols-outlined">
+                  {{ showNewPin() ? 'visibility_off' : 'visibility' }}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="confirmSettingsPin">Confirm New PIN</label>
+            <div class="input-container">
+              <input
+                id="confirmSettingsPin"
+                [type]="showConfirmPin() ? 'text' : 'password'"
+                [(ngModel)]="confirmPinValue"
+                placeholder="Re-enter 4-digit PIN"
+                class="vault-input font-mono"
+                maxlength="4"
+                inputmode="numeric"
+                pattern="[0-9]*"
+              />
+              <button
+                type="button"
+                class="visibility-btn"
+                (click)="showConfirmPin.set(!showConfirmPin())"
+                aria-label="Toggle PIN visibility"
+              >
+                <span class="material-symbols-outlined">
+                  {{ showConfirmPin() ? 'visibility_off' : 'visibility' }}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div *ngIf="pinErrorMessage()" class="form-error">
+            {{ pinErrorMessage() }}
+          </div>
+
+          <div class="pin-actions">
+            <button
+              type="button"
+              class="btn-primary"
+              [disabled]="isChangingPin()"
+              (click)="saveNewPin()"
+            >
+              <span class="material-symbols-outlined">check</span>
+              <span>{{ isChangingPin() ? 'Updating...' : 'Save New PIN' }}</span>
+            </button>
+            <button
+              type="button"
+              class="btn-secondary"
+              (click)="cancelChangePin()"
+              [disabled]="isChangingPin()"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- App Updates & Version Info -->
       <div class="settings-card glass-panel">
         <div class="card-title-row">
@@ -467,6 +565,110 @@ import { BackupInspectionResult } from '../../shared/models/backup.model';
       border-color: rgba(239, 68, 68, 0.3);
       background: rgba(239, 68, 68, 0.04);
     }
+
+    .pin-status-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--border-subtle);
+      flex-wrap: wrap;
+    }
+
+    .pin-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .pin-status-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .pin-status-desc {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .change-pin-box {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .input-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .vault-input {
+      width: 100%;
+      height: 44px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 0 44px 0 14px;
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .vault-input:focus {
+      border-color: var(--primary);
+      box-shadow: var(--shadow-neon);
+    }
+
+    .visibility-btn {
+      position: absolute;
+      right: 6px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      border-radius: 6px;
+    }
+
+    .visibility-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .form-error {
+      font-size: 0.8rem;
+      color: var(--danger);
+    }
+
+    .pin-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 4px;
+    }
   `]
 })
 export class SettingsComponent {
@@ -481,6 +683,55 @@ export class SettingsComponent {
   readonly isRestoringBackup = signal<boolean>(false);
   readonly restoreErrorMessage = signal<string>('');
   private pendingBackupPasswordAttempt: string = '';
+
+  // 4-Digit Master PIN Management
+  readonly showChangePinForm = signal<boolean>(false);
+  readonly showNewPin = signal<boolean>(false);
+  readonly showConfirmPin = signal<boolean>(false);
+  readonly isChangingPin = signal<boolean>(false);
+  readonly pinErrorMessage = signal<string>('');
+  newPinValue: string = '';
+  confirmPinValue: string = '';
+
+  openChangePinForm(): void {
+    this.newPinValue = '';
+    this.confirmPinValue = '';
+    this.pinErrorMessage.set('');
+    this.showChangePinForm.set(true);
+  }
+
+  cancelChangePin(): void {
+    this.newPinValue = '';
+    this.confirmPinValue = '';
+    this.pinErrorMessage.set('');
+    this.showChangePinForm.set(false);
+  }
+
+  async saveNewPin(): Promise<void> {
+    const p1 = (this.newPinValue || '').trim();
+    const p2 = (this.confirmPinValue || '').trim();
+
+    if (!/^\d{4}$/.test(p1)) {
+      this.pinErrorMessage.set('Master PIN must be exactly 4 digits (0-9).');
+      return;
+    }
+
+    if (p1 !== p2) {
+      this.pinErrorMessage.set('PINs do not match.');
+      return;
+    }
+
+    this.isChangingPin.set(true);
+    this.pinErrorMessage.set('');
+    try {
+      const ok = await this.vaultState.changeMasterPassword(p1);
+      if (ok) {
+        this.cancelChangePin();
+      }
+    } finally {
+      this.isChangingPin.set(false);
+    }
+  }
 
   async onManualUpdateCheck(): Promise<void> {
     const result = await this.appUpdate.checkForUpdates(true);
@@ -507,7 +758,7 @@ export class SettingsComponent {
 
   async onExportBackup(): Promise<void> {
     try {
-      const password = prompt('Enter your Master Password to encrypt and sign this backup:');
+      const password = prompt('Enter your 4-digit Master PIN / Password to encrypt and sign this backup:');
       if (!password) {
         return;
       }
@@ -534,7 +785,7 @@ export class SettingsComponent {
     const file = input.files[0];
     try {
       const text = await file.text();
-      const passwordAttempt = prompt('Enter the Master Password for this backup file:');
+      const passwordAttempt = prompt('Enter the 4-digit Master PIN / Password for this backup file:');
       if (!passwordAttempt) {
         input.value = '';
         return;

@@ -79,18 +79,14 @@ jobs:
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: "SecureVault v1.0.${{ github.run_number }} (Android APK)"
+          generate_release_notes: true
           body: |
             ## 🛡️ SecureVault v1.0.${{ github.run_number }} — Encrypted Credential Vault
             
             ### 📱 Android Installation:
             Download **[SecureVault.apk](https://github.com/Sabarish204/SecureVault/releases/download/v1.0.${{ github.run_number }}/SecureVault.apk)**
             
-            ### 🚀 What's New in this Build:
-            - **Commit**: `${{ github.sha }}`
-            - **Build Number**: `${{ github.run_number }}`
-            - **Local-First Zero-Knowledge Architecture**: AES-256-GCM + PBKDF2 encryption
-            - **In-App Auto-Update System**: Automatic update detection & integrity verification
-            - **Indian Bank Directory**: 50+ banks with official NetBanking portals
+            *Build: `#${{ github.run_number }}` • Commit: `${{ github.sha }}`*
           files: |
             ./SecureVault-v1.0.${{ github.run_number }}.apk
             ./SecureVault-v1.0.${{ github.run_number }}.apk.sha256

@@ -1,4 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import { CryptoService } from '../crypto/crypto.service';
 import { BackupCryptoService } from './backup-crypto.service';
 import { BackupMigrationService } from './backup-migration.service';
@@ -8,6 +11,7 @@ import { VaultStateService } from '../state/vault-state.service';
 import {
   BackupInspectionResult,
   DecryptedBackupPayload,
+  ExportBackupResult,
   RestoreOptions,
   SecureVaultBackupEnvelope
 } from '../../shared/models/backup.model';
@@ -47,8 +51,10 @@ export class VaultBackupService {
 
   /**
    * Exports all decrypted vault items into a secure, encrypted .svbackup envelope.
+   * On mobile (Android/iOS), writes directly to the Documents folder using Capacitor Filesystem.
+   * On desktop/web, downloads through the browser to the Downloads directory.
    */
-  async exportBackup(masterPassword: string): Promise<{ success: boolean; filename: string; recordCount: number }> {
+  async exportBackup(masterPassword: string): Promise<ExportBackupResult> {
     this.isExporting.set(true);
     this.errorMessage.set('');
 
@@ -104,14 +110,57 @@ export class VaultBackupService {
 
       const filename = this.generateDefaultFilename();
       const backupJson = JSON.stringify(envelope, null, 2);
+      const fileSizeBytes = new TextEncoder().encode(backupJson).length;
+      const isNative = Capacitor.isNativePlatform();
 
-      // 3. Trigger document download
-      this.triggerFileDownload(backupJson, filename);
+      let uri = '';
+      let displayPath = '';
+
+      if (isNative) {
+        // Native mobile environment (Android APK / iOS)
+        try {
+          const writeResult = await Filesystem.writeFile({
+            path: filename,
+            data: backupJson,
+            directory: Directory.Documents,
+            encoding: Encoding.UTF8
+          });
+          uri = writeResult.uri;
+          displayPath = this.formatDisplayPath(writeResult.uri, filename);
+        } catch (fsErr) {
+          console.warn('Writing to Documents directory failed, falling back to Cache:', fsErr);
+          try {
+            const writeResult = await Filesystem.writeFile({
+              path: filename,
+              data: backupJson,
+              directory: Directory.Cache,
+              encoding: Encoding.UTF8
+            });
+            uri = writeResult.uri;
+            displayPath = this.formatDisplayPath(writeResult.uri, filename);
+          } catch (cacheErr) {
+            console.error('Filesystem write completely failed on native, falling back to browser download:', cacheErr);
+            this.triggerFileDownload(backupJson, filename);
+            displayPath = `Downloads/${filename}`;
+          }
+        }
+      } else {
+        // Desktop / Web browser
+        this.triggerFileDownload(backupJson, filename);
+        displayPath = `Downloads/${filename}`;
+      }
 
       return {
         success: true,
         filename,
-        recordCount: decryptedItems.length
+        recordCount: decryptedItems.length,
+        uri,
+        displayPath,
+        isNative,
+        fileSizeBytes,
+        createdAt: envelope.createdAt,
+        backupId: envelope.backupId,
+        envelope
       };
     } catch (err: any) {
       const msg = err.message || 'Unable to export backup.';
@@ -120,6 +169,54 @@ export class VaultBackupService {
     } finally {
       this.isExporting.set(false);
     }
+  }
+
+  /**
+   * Formats a device file URI into a user-friendly, descriptive storage path.
+   */
+  formatDisplayPath(uri: string, filename: string): string {
+    if (!uri) {
+      return `Documents/${filename}`;
+    }
+    const clean = uri.startsWith('file://') ? uri.replace('file://', '') : uri;
+    if (clean.includes('/storage/emulated/0/')) {
+      return clean.replace('/storage/emulated/0/', 'Internal Storage > ');
+    }
+    return clean;
+  }
+
+  /**
+   * Opens the native Android share / view sheet or Web Share for the exported backup file.
+   */
+  async shareOrViewBackup(result: ExportBackupResult): Promise<boolean> {
+    if (Capacitor.isNativePlatform() && result.uri) {
+      try {
+        await Share.share({
+          title: result.filename,
+          text: `SecureVault Encrypted Backup (${result.recordCount} records)`,
+          files: [result.uri],
+          dialogTitle: 'View or Share Backup File'
+        });
+        return true;
+      } catch (err: any) {
+        if (err?.message && (err.message.includes('cancel') || err.message.includes('Cancel') || err.message.includes('dismissed'))) {
+          return false;
+        }
+        console.error('Share failed:', err);
+        throw err;
+      }
+    } else if (typeof navigator !== 'undefined' && (navigator as any).share) {
+      try {
+        await (navigator as any).share({
+          title: result.filename,
+          text: `SecureVault Encrypted Backup (${result.recordCount} records)`
+        });
+        return true;
+      } catch (err: any) {
+        return false;
+      }
+    }
+    return false;
   }
 
   /**

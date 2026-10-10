@@ -8,22 +8,26 @@ import { VaultStorageService } from '../../core/persistence/vault-storage.servic
 import { PwaService } from '../../core/services/pwa.service';
 import { AppUpdateService } from '../../core/update/app-update.service';
 import { VaultBackupService } from '../../core/backup/vault-backup.service';
+import { BiometricService } from '../../core/services/biometric.service';
 import { RestoreConfirmDialogComponent } from '../../shared/components/restore-confirm-dialog/restore-confirm-dialog.component';
-import { BackupInspectionResult } from '../../shared/models/backup.model';
+import { BackupInspectionResult, ExportBackupResult } from '../../shared/models/backup.model';
+import { FeedbackModalComponent } from '../../shared/components/feedback-modal/feedback-modal.component';
+import { FeedbackSubmissionResult } from '../../shared/models/feedback.model';
+import { NetworkStatusService } from '../../core/services/network-status.service';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatButtonModule, RestoreConfirmDialogComponent],
+  imports: [CommonModule, FormsModule, MatButtonModule, RestoreConfirmDialogComponent, FeedbackModalComponent],
   template: `
     <div class="settings-wrapper animate-fade-in">
       <div class="settings-header">
         <h1 class="page-title">Vault Security & Settings</h1>
-        <p class="page-desc">Manage cryptographic preferences and local persistence.</p>
+        <!-- <p class="page-desc">Manage cryptographic preferences and local persistence.</p> -->
       </div>
 
       <!-- Security Invariants Overview -->
-      <div class="settings-card glass-panel-elevated">
+      <!-- <div class="settings-card glass-panel-elevated">
         <div class="card-title-row">
           <span class="material-symbols-outlined icon-accent">security</span>
           <h2 class="card-title">Cryptographic Architecture</h2>
@@ -55,7 +59,7 @@ import { BackupInspectionResult } from '../../shared/models/backup.model';
             <span class="spec-val">Volatile memory only</span>
           </div>
         </div>
-      </div>
+      </div> -->
 
       <!-- Auto-Lock Preferences -->
       <div class="settings-card glass-panel">
@@ -199,6 +203,114 @@ import { BackupInspectionResult } from '../../shared/models/backup.model';
         </div>
       </div>
 
+      <!-- Biometric & Fingerprint Security -->
+      <div class="settings-card glass-panel">
+        <div class="card-title-row">
+          <span class="material-symbols-outlined icon-accent">fingerprint</span>
+          <h2 class="card-title">Biometric / {{ biometric.biometryName() }} Unlock</h2>
+        </div>
+        <p class="card-desc">
+          Unlock your vault with your fingerprint. Your 4-digit Master PIN is encrypted using Android Keystore hardware protection.
+        </p>
+
+        <!-- Hardware Status Indicator -->
+        <div class="biometric-status-banner" [class.available]="biometric.isHardwareAvailable()">
+          <span class="material-symbols-outlined status-badge-icon">
+            {{ biometric.isHardwareAvailable() ? 'verified_user' : 'sensors_off' }}
+          </span>
+          <div class="status-banner-info">
+            <span class="status-banner-title">
+              {{ biometric.isHardwareAvailable() ? biometric.biometryName() + ' Sensor Ready' : 'Biometric Sensor Unavailable' }}
+            </span>
+            <span class="status-banner-desc">
+              {{ biometric.isHardwareAvailable()
+                ? (biometric.hasEnrolledBiometrics() ? 'Biometrics enrolled and ready for hardware authentication' : 'No fingerprints enrolled in device settings')
+                : 'Device does not report biometric hardware or permissions are required' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Biometric Activation Box -->
+        <div class="pin-status-box">
+          <div class="pin-meta">
+            <span class="pin-status-title">Fingerprint Unlock</span>
+            <span class="pin-status-desc" [style.color]="biometric.isEnabled() ? 'var(--success)' : 'var(--text-muted)'">
+              {{ biometric.isEnabled() ? 'Active & Protected by Android Keystore' : 'Disabled — Requires PIN every time' }}
+            </span>
+          </div>
+          
+          <div *ngIf="biometric.isEnabled()">
+            <button
+              type="button"
+              class="btn-danger-outline"
+              (click)="onDisableBiometrics()"
+              [disabled]="biometric.isAuthenticating()"
+            >
+              <span class="material-symbols-outlined">lock_reset</span>
+              <span>Disable Fingerprint</span>
+            </button>
+          </div>
+
+          <div *ngIf="!biometric.isEnabled()">
+            <button
+              type="button"
+              class="btn-primary"
+              (click)="openEnableBiometricModal()"
+              [disabled]="biometric.isAuthenticating() || isEnablingBiometric()"
+            >
+              <span class="material-symbols-outlined">fingerprint</span>
+              <span>Enable {{ biometric.biometryName() }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Enable Biometric Confirmation Form -->
+        <div *ngIf="showEnableBiometricForm()" class="change-pin-box animate-fade-in">
+          <div class="form-group">
+            <label class="form-label" for="bioConfirmPin">Confirm Master PIN to Activate</label>
+            <div class="input-container">
+              <input
+                id="bioConfirmPin"
+                type="password"
+                [(ngModel)]="enableBioPinValue"
+                placeholder="Enter your 4-digit Master PIN"
+                class="vault-input font-mono"
+                maxlength="4"
+                inputmode="numeric"
+                pattern="[0-9]*"
+              />
+            </div>
+            <p class="helper-text">
+              Enter your current PIN once to authorize encryption into the device hardware Keystore.
+            </p>
+          </div>
+
+          <div *ngIf="bioErrorMessage()" class="form-error">
+            {{ bioErrorMessage() }}
+          </div>
+
+          <div class="pin-actions">
+            <button
+              type="button"
+              class="btn-primary"
+              [disabled]="isEnablingBiometric()"
+              (click)="confirmEnableBiometric()"
+            >
+              <span class="material-symbols-outlined">fingerprint</span>
+              <span>{{ isEnablingBiometric() ? 'Scanning Fingerprint...' : 'Scan Fingerprint & Activate' }}</span>
+            </button>
+            <button
+              type="button"
+              class="btn-secondary"
+              (click)="cancelEnableBiometric()"
+              [disabled]="isEnablingBiometric()"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- App Updates & Version Info -->
       <div class="settings-card glass-panel">
         <div class="card-title-row">
@@ -271,7 +383,7 @@ import { BackupInspectionResult } from '../../shared/models/backup.model';
               <span class="material-symbols-outlined" style="color: var(--primary);">cloud_download</span>
               <span class="subcard-title">Export Backup</span>
             </div>
-            <p class="subcard-desc">Create a secure AES-256-GCM encrypted backup package with zero plaintext secrets.</p>
+            <!-- <p class="subcard-desc">Create a secure AES-256-GCM encrypted backup package with zero plaintext secrets.</p> -->
             <button
               type="button"
               class="btn-primary"
@@ -297,7 +409,7 @@ import { BackupInspectionResult } from '../../shared/models/backup.model';
               #backupFileInput
               type="file"
               (change)="onBackupFileSelected($event)"
-              accept=".svbackup,.json,application/octet-stream"
+              accept=".svbackup,.json,text/plain,application/octet-stream,*/*"
               style="display: none;"
             />
             
@@ -314,6 +426,89 @@ import { BackupInspectionResult } from '../../shared/models/backup.model';
             </button>
           </div>
         </div>
+
+        <!-- Export Result Feedback Box -->
+        <div *ngIf="lastExportResult()" class="export-result-card animate-fade-in">
+          <div class="result-header">
+            <div class="result-icon-badge">
+              <span class="material-symbols-outlined">check_circle</span>
+            </div>
+            <div class="result-header-text">
+              <div class="result-title-row">
+                <h3 class="result-title">Backup Exported Successfully</h3>
+                <span class="result-badge">{{ lastExportResult()!.isNative ? 'Mobile Storage' : 'Browser Download' }}</span>
+              </div>
+              <span class="result-filename font-mono">{{ lastExportResult()!.filename }}</span>
+            </div>
+            <button
+              type="button"
+              class="dismiss-btn"
+              (click)="dismissExportResult()"
+              aria-label="Dismiss export details"
+            >
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+
+          <!-- Exact Location / Path Section -->
+          <div class="result-path-box">
+            <div class="path-header">
+              <span class="material-symbols-outlined path-icon">folder_open</span>
+              <span class="path-label">
+                {{ lastExportResult()!.isNative ? 'Saved Mobile Location (Documents):' : 'Saved Desktop Location:' }}
+              </span>
+            </div>
+            <div class="path-val-row">
+              <code class="path-code font-mono">{{ lastExportResult()!.displayPath }}</code>
+              <button
+                type="button"
+                class="btn-copy-path"
+                (click)="copyExportPath()"
+                [title]="hasCopiedPath() ? 'Copied!' : 'Copy full path to clipboard'"
+              >
+                <span class="material-symbols-outlined">{{ hasCopiedPath() ? 'done' : 'content_copy' }}</span>
+                <span>{{ hasCopiedPath() ? 'Copied' : 'Copy Path' }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Metadata Tags -->
+          <div class="result-meta-row">
+            <span class="meta-tag">
+              <span class="material-symbols-outlined">lock</span>
+              AES-256-GCM
+            </span>
+            <span class="meta-tag highlight">
+              <span class="material-symbols-outlined">database</span>
+              {{ lastExportResult()!.recordCount }} Records
+            </span>
+            <span class="meta-tag">
+              <span class="material-symbols-outlined">straighten</span>
+              {{ formatBytes(lastExportResult()!.fileSizeBytes) }}
+            </span>
+          </div>
+
+          <!-- Actions: View / Share & Inspection -->
+          <div class="result-actions-row">
+            <button
+              type="button"
+              class="btn-primary flex-1"
+              (click)="onShareExportedFile()"
+            >
+              <span class="material-symbols-outlined">{{ lastExportResult()!.isNative ? 'share' : 'visibility' }}</span>
+              <span>{{ lastExportResult()!.isNative ? 'View / Share Backup File' : 'View / Inspect File' }}</span>
+            </button>
+
+            <button
+              type="button"
+              class="btn-secondary"
+              (click)="openExportInspection()"
+            >
+              <span class="material-symbols-outlined">info</span>
+              <span>Details</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Restore Confirmation Modal Dialog -->
@@ -326,13 +521,126 @@ import { BackupInspectionResult } from '../../shared/models/backup.model';
         (cancel)="onCancelRestore()"
       ></app-restore-confirm-dialog>
 
+      <!-- Export Inspection Modal Dialog -->
+      <div *ngIf="showExportInspectionModal() && lastExportResult()" class="restore-modal-backdrop animate-fade-in" role="dialog" aria-modal="true">
+        <div class="restore-modal-card glass-panel-elevated">
+          
+          <div class="modal-header">
+            <div class="icon-badge" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4);">
+              <span class="material-symbols-outlined" style="color: var(--success); font-size: 28px;">verified_user</span>
+            </div>
+            <div class="title-meta">
+              <h2 class="modal-title">Backup Verification</h2>
+              <p class="modal-subtitle">Cryptographic envelope generated & validated.</p>
+            </div>
+          </div>
+
+          <div class="backup-meta-box">
+            <div class="meta-row">
+              <span class="meta-label">File Name:</span>
+              <span class="meta-val font-mono" style="word-break: break-all; font-size: 0.76rem;">{{ lastExportResult()!.filename }}</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Location:</span>
+              <span class="meta-val font-mono" style="word-break: break-all; color: var(--primary); font-size: 0.76rem;">{{ lastExportResult()!.displayPath }}</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Created At:</span>
+              <span class="meta-val">{{ lastExportResult()!.createdAt | date:'medium' }}</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Total Records:</span>
+              <span class="meta-val font-mono highlight">{{ lastExportResult()!.recordCount }} item(s)</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">File Size:</span>
+              <span class="meta-val font-mono">{{ formatBytes(lastExportResult()!.fileSizeBytes) }}</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Encryption:</span>
+              <span class="meta-val font-mono">AES-256-GCM (PBKDF2 600,000 rds)</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Backup UUID:</span>
+              <span class="meta-val font-mono" style="font-size: 0.72rem; color: var(--text-muted);">{{ lastExportResult()!.backupId }}</span>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button
+              *ngIf="lastExportResult()!.isNative"
+              type="button"
+              class="btn-primary flex-1"
+              (click)="onShareExportedFile()"
+            >
+              <span class="material-symbols-outlined">share</span>
+              <span>View / Share File</span>
+            </button>
+            <button
+              type="button"
+              class="btn-secondary"
+              (click)="closeExportInspection()"
+            >
+              <span>Close</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Feedback & Suggestions -->
+      <div class="settings-card glass-panel">
+        <div class="card-title-row">
+          <span class="material-symbols-outlined icon-accent">rate_review</span>
+          <h2 class="card-title">Feedback & Suggestions</h2>
+        </div>
+        <p class="card-desc">
+          Have an idea for a new feature, or found a bug? Send your suggestions.
+        </p>
+
+        <!-- Network Status Pill -->
+        <div class="feedback-network-box" [class.offline]="!network.isOnline()">
+          <span class="material-symbols-outlined status-dot-icon">
+            {{ network.isOnline() ? 'wifi' : 'wifi_off' }}
+          </span>
+          <div class="network-status-meta">
+            <span class="network-status-title">
+              {{ network.isOnline() ? 'Connected to Internet' : 'Device is Offline' }}
+            </span>
+            <span class="network-status-desc">
+              {{ network.isOnline()
+                ? 'Online and ready to submit feedback.'
+                : 'Connect to Wi-Fi or mobile data to submit suggestions.' }}
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <button
+            type="button"
+            class="btn-primary"
+            (click)="openFeedbackModal()"
+          >
+            <span class="material-symbols-outlined">send</span>
+            <span>Send Feedback or Suggestion</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Feedback Modal Dialog -->
+      <app-feedback-modal
+        *ngIf="showFeedbackModal()"
+        (close)="showFeedbackModal.set(false)"
+        (submitted)="onFeedbackSubmitted($event)"
+      ></app-feedback-modal>
+
       <!-- Danger Zone: Reset Vault -->
       <div class="settings-card glass-panel danger-zone">
         <div class="card-title-row">
           <span class="material-symbols-outlined" style="color: var(--danger);">warning</span>
           <h2 class="card-title" style="color: var(--danger);">Danger Zone</h2>
         </div>
-        <p class="card-desc">Erase all encrypted records and reset your master password from this device.</p>
+        <p class="card-desc">Erase all records and reset your master password from this device.</p>
 
         <button type="button" class="btn-danger" (click)="resetVault()">
           <span class="material-symbols-outlined">delete_forever</span>
@@ -669,15 +977,322 @@ import { BackupInspectionResult } from '../../shared/models/backup.model';
       gap: 10px;
       margin-top: 4px;
     }
+
+    .biometric-status-banner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .biometric-status-banner.available {
+      border-color: rgba(34, 197, 94, 0.3);
+      background: rgba(34, 197, 94, 0.06);
+    }
+
+    .status-badge-icon {
+      font-size: 22px;
+      color: var(--text-muted);
+    }
+
+    .biometric-status-banner.available .status-badge-icon {
+      color: var(--success);
+    }
+
+    .status-banner-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .status-banner-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .status-banner-desc {
+      font-size: 0.76rem;
+      color: var(--text-secondary);
+    }
+
+    .btn-danger-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: transparent;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: var(--danger);
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-danger-outline:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: var(--danger);
+    }
+
+    .helper-text {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .export-result-card {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .result-icon-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--success);
+    }
+
+    .result-header-text {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .result-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .result-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .result-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--primary);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .result-filename {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      word-break: break-all;
+    }
+
+    .dismiss-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: color 0.2s ease;
+    }
+
+    .dismiss-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .result-path-box {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .path-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .path-icon {
+      font-size: 16px;
+      color: var(--primary);
+    }
+
+    .path-label {
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .path-val-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .path-code {
+      font-size: 0.78rem;
+      color: #38bdf8;
+      word-break: break-all;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .btn-copy-path {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 0.74rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .btn-copy-path:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--text-primary);
+    }
+
+    .btn-copy-path .material-symbols-outlined {
+      font-size: 14px;
+    }
+
+    .result-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .meta-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-subtle);
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    .meta-tag.highlight {
+      color: var(--primary);
+      border-color: rgba(56, 189, 248, 0.3);
+    }
+
+    .meta-tag .material-symbols-outlined {
+      font-size: 13px;
+    }
+
+    .result-actions-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .feedback-network-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      background: rgba(34, 197, 94, 0.06);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .feedback-network-box.offline {
+      background: rgba(251, 191, 36, 0.08);
+      border-color: rgba(251, 191, 36, 0.35);
+    }
+
+    .feedback-network-box .status-dot-icon {
+      color: var(--success);
+      font-size: 22px;
+    }
+
+    .feedback-network-box.offline .status-dot-icon {
+      color: var(--warning);
+    }
+
+    .network-status-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .network-status-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .network-status-desc {
+      font-size: 0.76rem;
+      color: var(--text-secondary);
+    }
   `]
 })
 export class SettingsComponent {
   readonly vaultState = inject(VaultStateService);
+  readonly biometric = inject(BiometricService);
   readonly pwa = inject(PwaService);
   readonly appUpdate = inject(AppUpdateService);
   readonly backupService = inject(VaultBackupService);
   private readonly storage = inject(VaultStorageService);
   private readonly snackBar = inject(MatSnackBar);
+
+  readonly lastExportResult = signal<ExportBackupResult | null>(null);
+  readonly showExportInspectionModal = signal<boolean>(false);
+  readonly hasCopiedPath = signal<boolean>(false);
+
+  readonly network = inject(NetworkStatusService);
+  readonly showFeedbackModal = signal<boolean>(false);
 
   readonly pendingInspection = signal<BackupInspectionResult | null>(null);
   readonly isRestoringBackup = signal<boolean>(false);
@@ -692,6 +1307,50 @@ export class SettingsComponent {
   readonly pinErrorMessage = signal<string>('');
   newPinValue: string = '';
   confirmPinValue: string = '';
+
+  // Biometric Management
+  readonly showEnableBiometricForm = signal<boolean>(false);
+  readonly isEnablingBiometric = signal<boolean>(false);
+  readonly bioErrorMessage = signal<string>('');
+  enableBioPinValue: string = '';
+
+  openEnableBiometricModal(): void {
+    this.enableBioPinValue = '';
+    this.bioErrorMessage.set('');
+    this.showEnableBiometricForm.set(true);
+  }
+
+  cancelEnableBiometric(): void {
+    this.enableBioPinValue = '';
+    this.bioErrorMessage.set('');
+    this.showEnableBiometricForm.set(false);
+  }
+
+  async confirmEnableBiometric(): Promise<void> {
+    const pin = (this.enableBioPinValue || '').trim();
+    if (!/^\d{4}$/.test(pin)) {
+      this.bioErrorMessage.set('Please enter your 4-digit Master PIN.');
+      return;
+    }
+
+    this.isEnablingBiometric.set(true);
+    this.bioErrorMessage.set('');
+    try {
+      const success = await this.biometric.enableBiometric(pin);
+      if (success) {
+        this.cancelEnableBiometric();
+      }
+    } finally {
+      this.isEnablingBiometric.set(false);
+    }
+  }
+
+  async onDisableBiometrics(): Promise<void> {
+    const confirmed = confirm('Disable fingerprint unlock? You will need to enter your 4-digit PIN to access your vault.');
+    if (confirmed) {
+      await this.biometric.disableBiometric();
+    }
+  }
 
   openChangePinForm(): void {
     this.newPinValue = '';
@@ -764,12 +1423,86 @@ export class SettingsComponent {
       }
 
       const result = await this.backupService.exportBackup(password);
-      this.snackBar.open(`Backup exported: ${result.filename} (${result.recordCount} records)`, 'Close', {
-        duration: 4000,
-        panelClass: 'snack-success'
-      });
+      this.lastExportResult.set(result);
+      this.hasCopiedPath.set(false);
+
+      if (result.isNative) {
+        const snack = this.snackBar.open(
+          `Backup exported: ${result.filename}`,
+          'View / Share',
+          {
+            duration: 6000,
+            panelClass: 'snack-success'
+          }
+        );
+        snack.onAction().subscribe(() => {
+          this.onShareExportedFile();
+        });
+      } else {
+        const snack = this.snackBar.open(
+          `Backup exported: ${result.filename} (Downloads folder)`,
+          'Details',
+          {
+            duration: 5000,
+            panelClass: 'snack-success'
+          }
+        );
+        snack.onAction().subscribe(() => {
+          this.openExportInspection();
+        });
+      }
     } catch (err: any) {
       this.snackBar.open(err.message || 'Export failed.', 'Close', {
+        duration: 3500,
+        panelClass: 'snack-error'
+      });
+    }
+  }
+
+  dismissExportResult(): void {
+    this.lastExportResult.set(null);
+  }
+
+  copyExportPath(): void {
+    const result = this.lastExportResult();
+    if (!result) return;
+    const path = result.uri ? result.uri.replace('file://', '') : result.displayPath;
+    navigator.clipboard.writeText(path).then(() => {
+      this.hasCopiedPath.set(true);
+      this.snackBar.open('File path copied to clipboard!', 'Close', {
+        duration: 2500,
+        panelClass: 'snack-info'
+      });
+      setTimeout(() => this.hasCopiedPath.set(false), 3000);
+    });
+  }
+
+  openExportInspection(): void {
+    this.showExportInspectionModal.set(true);
+  }
+
+  closeExportInspection(): void {
+    this.showExportInspectionModal.set(false);
+  }
+
+  formatBytes(bytes: number): string {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  async onShareExportedFile(): Promise<void> {
+    const result = this.lastExportResult();
+    if (!result) return;
+    try {
+      const shared = await this.backupService.shareOrViewBackup(result);
+      if (!shared && !result.isNative) {
+        this.openExportInspection();
+      }
+    } catch (err: any) {
+      this.snackBar.open('Unable to open share sheet: ' + (err.message || err), 'Close', {
         duration: 3500,
         panelClass: 'snack-error'
       });
@@ -855,6 +1588,32 @@ export class SettingsComponent {
     const confirmed = confirm('WARNING: Are you absolutely sure you want to reset your vault? All local records will be deleted.');
     if (confirmed) {
       await this.vaultState.resetEntireVault();
+    }
+  }
+
+  async openFeedbackModal(): Promise<void> {
+    const isOnline = await this.network.checkConnectivity();
+    if (!isOnline) {
+      this.snackBar.open('You are currently offline. Please connect to Wi-Fi or mobile data to send feedback.', 'Close', {
+        duration: 4000,
+        panelClass: 'snack-info'
+      });
+    }
+    this.showFeedbackModal.set(true);
+  }
+
+  onFeedbackSubmitted(result: FeedbackSubmissionResult): void {
+    if (result.success) {
+      this.snackBar.open(
+        result.openedInBrowser
+          ? 'Opening GitHub Issues in your browser to submit...'
+          : 'Feedback submitted successfully! Thank you for helping improve SecureVault.',
+        'Close',
+        {
+          duration: 4500,
+          panelClass: 'snack-success'
+        }
+      );
     }
   }
 }

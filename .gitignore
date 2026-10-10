@@ -59,6 +59,9 @@ __screenshots__/
 credentials.json
 vault_export*.json
 *.secret
+pat.txt
+*.token
+*.pat
 
 # System files
 .DS_Store

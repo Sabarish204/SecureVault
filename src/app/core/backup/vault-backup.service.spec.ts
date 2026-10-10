@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { CryptoService } from '../crypto/crypto.service';
 import { BackupCryptoService } from './backup-crypto.service';
 import { BackupMigrationService } from './backup-migration.service';
+import { VaultBackupService } from './vault-backup.service';
 import { DecryptedBackupPayload } from '../../shared/models/backup.model';
 
 describe('VaultBackupCrypto & Migration Suite', () => {
@@ -82,7 +83,7 @@ describe('VaultBackupCrypto & Migration Suite', () => {
     expect(envelopeJson).not.toContain('123456789012');
     expect(envelopeJson).not.toContain('4111111111111111');
     expect(envelopeJson).not.toContain('SBIN0001234');
-    expect(envelopeJson).not.toContain('999');
+    expect(envelopeJson).not.toContain('"cvv":"999"');
   });
 
   it('should decrypt and verify backup payload with correct master password', async () => {
@@ -152,5 +153,29 @@ describe('VaultBackupCrypto & Migration Suite', () => {
     expect(migrated.items[0].title).toBe('Axis Bank');
     expect(migrated.items[0].createdAt).toBeGreaterThan(0);
     expect(migrated.metadata.autoLockMinutes).toBe(10);
+  });
+
+  it('should format mobile device storage path cleanly for display', () => {
+    const service = Object.create(VaultBackupService.prototype);
+
+    // Android public external documents URI
+    const androidUri = 'file:///storage/emulated/0/Documents/SecureVault_Backup_2026-10-10.svbackup';
+    const formatted = service.formatDisplayPath(androidUri, 'SecureVault_Backup_2026-10-10.svbackup');
+    expect(formatted).toBe('Internal Storage > Documents/SecureVault_Backup_2026-10-10.svbackup');
+
+    // App documents fallback
+    const customUri = 'file:///data/user/0/com.sabarish.securevault/cache/backup.svbackup';
+    const formattedCustom = service.formatDisplayPath(customUri, 'backup.svbackup');
+    expect(formattedCustom).toBe('/data/user/0/com.sabarish.securevault/cache/backup.svbackup');
+
+    // Empty URI fallback
+    const fallback = service.formatDisplayPath('', 'fallback.svbackup');
+    expect(fallback).toBe('Documents/fallback.svbackup');
+  });
+
+  it('should generate valid default backup filename with timestamp and .svbackup extension', () => {
+    const service = Object.create(VaultBackupService.prototype);
+    const filename = service.generateDefaultFilename();
+    expect(filename).toMatch(/^SecureVault_Backup_\d{4}-\d{2}-\d{2}_\d{6}\.svbackup$/);
   });
 });

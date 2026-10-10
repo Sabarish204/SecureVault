@@ -5,6 +5,7 @@ import { AppHeaderComponent } from './shared/components/app-header/app-header.co
 import { BottomNavComponent } from './shared/components/bottom-nav/bottom-nav.component';
 import { UpdateDialogComponent } from './shared/components/update-dialog/update-dialog.component';
 import { AutoLockService } from './core/services/auto-lock.service';
+import { BiometricService } from './core/services/biometric.service';
 import { PwaService } from './core/services/pwa.service';
 import { VaultStateService } from './core/state/vault-state.service';
 import { AppUpdateService } from './core/update/app-update.service';
@@ -20,6 +21,7 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 })
 export class App implements OnInit {
   private readonly autoLock = inject(AutoLockService);
+  private readonly biometricService = inject(BiometricService);
   private readonly pwaService = inject(PwaService);
   private readonly appUpdate = inject(AppUpdateService);
   readonly vaultState = inject(VaultStateService);
@@ -27,6 +29,7 @@ export class App implements OnInit {
   async ngOnInit(): Promise<void> {
     this.autoLock.init();
     this.pwaService.init();
+    this.biometricService.init();
 
     if (Capacitor.isNativePlatform()) {
       try {

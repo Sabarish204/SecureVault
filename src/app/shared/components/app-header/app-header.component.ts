@@ -71,7 +71,7 @@ import { PwaService } from '../../../core/services/pwa.service';
             *ngIf="vaultState.isUnlocked()"
             type="button"
             class="lock-btn"
-            (click)="vaultState.lockVault('Vault locked by user.')"
+            (click)="vaultState.lockVault()"
             matTooltip="Lock Vault immediately"
             aria-label="Lock Vault"
           >

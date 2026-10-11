@@ -11,14 +11,13 @@ import { VaultBackupService } from '../../core/backup/vault-backup.service';
 import { BiometricService } from '../../core/services/biometric.service';
 import { RestoreConfirmDialogComponent } from '../../shared/components/restore-confirm-dialog/restore-confirm-dialog.component';
 import { BackupInspectionResult, ExportBackupResult } from '../../shared/models/backup.model';
-import { FeedbackModalComponent } from '../../shared/components/feedback-modal/feedback-modal.component';
-import { FeedbackSubmissionResult } from '../../shared/models/feedback.model';
+import { FeedbackService } from '../../core/services/feedback.service';
 import { NetworkStatusService } from '../../core/services/network-status.service';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatButtonModule, RestoreConfirmDialogComponent, FeedbackModalComponent],
+  imports: [CommonModule, FormsModule, MatButtonModule, RestoreConfirmDialogComponent],
   template: `
     <div class="settings-wrapper animate-fade-in">
       <div class="settings-header">
@@ -642,12 +641,6 @@ import { NetworkStatusService } from '../../core/services/network-status.service
       </div>
     </div>
 
-    <!-- Feedback Modal Dialog -->
-    <app-feedback-modal
-      *ngIf="showFeedbackModal()"
-      (close)="showFeedbackModal.set(false)"
-      (submitted)="onFeedbackSubmitted($event)"
-    ></app-feedback-modal>
   `,
   styles: [`
     .settings-wrapper {
@@ -1379,7 +1372,7 @@ export class SettingsComponent {
   readonly hasCopiedPath = signal<boolean>(false);
 
   readonly network = inject(NetworkStatusService);
-  readonly showFeedbackModal = signal<boolean>(false);
+  readonly feedbackService = inject(FeedbackService);
 
   readonly pendingInspection = signal<BackupInspectionResult | null>(null);
   readonly isRestoringBackup = signal<boolean>(false);
@@ -1685,22 +1678,8 @@ export class SettingsComponent {
         duration: 4000,
         panelClass: 'snack-info'
       });
+      return;
     }
-    this.showFeedbackModal.set(true);
-  }
-
-  onFeedbackSubmitted(result: FeedbackSubmissionResult): void {
-    if (result.success) {
-      this.snackBar.open(
-        result.openedInBrowser
-          ? 'Opening GitHub Issues in your browser to submit...'
-          : 'Feedback submitted successfully! Thank you for helping improve SecureVault.',
-        'Close',
-        {
-          duration: 4500,
-          panelClass: 'snack-success'
-        }
-      );
-    }
+    this.feedbackService.open();
   }
 }

@@ -409,3 +409,18 @@ button, a, input, select, textarea, .touch-target {
 .cdk-overlay-pane:has(.mat-mdc-snack-bar-container) {
   margin-bottom: calc(var(--bottom-nav-height) + 14px) !important;
 }
+
+/* Modal Open: Hide bottom navigation bar so it never covers modals or submit buttons */
+body.modal-open,
+body:has(.feedback-modal-backdrop) {
+  overflow: hidden !important;
+
+  .bottom-nav-container,
+  app-bottom-nav {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    z-index: -1 !important;
+  }
+}
+

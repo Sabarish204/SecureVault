@@ -48,15 +48,6 @@ import { VaultStateService } from '../../../core/state/vault-state.service';
           <span class="nav-label">Add</span>
         </a>
 
-        <!-- Search -->
-        <a
-          (click)="focusSearch()"
-          class="nav-item search-tab"
-          [class.active]="vaultState.searchQuery().length > 0"
-        >
-          <span class="material-symbols-outlined nav-icon">search</span>
-          <span class="nav-label">Search</span>
-        </a>
 
         <!-- Settings -->
         <a
@@ -216,20 +207,5 @@ export class BottomNavComponent {
     this.router.navigateByUrl(path);
   }
 
-  async focusSearch(): Promise<void> {
-    if (!this.router.url.startsWith('/items') || this.router.url.startsWith('/items/')) {
-      await this.router.navigate(['/items']);
-    }
 
-    setTimeout(() => {
-      const searchInput = (document.getElementById('vaultSearchInput') ||
-        document.querySelector('.filter-search-input') ||
-        document.querySelector('.header-search-input')) as HTMLInputElement;
-
-      if (searchInput) {
-        searchInput.focus();
-        searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 120);
-  }
 }

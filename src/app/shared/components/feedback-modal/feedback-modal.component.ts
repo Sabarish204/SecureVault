@@ -252,40 +252,43 @@ import {
       width: 100vw;
       height: 100%;
       height: 100dvh;
-      background: rgba(4, 7, 13, 0.85);
+      background: rgba(4, 7, 13, 0.88);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       display: flex;
       align-items: flex-start;
       justify-content: center;
-      padding: max(16px, env(safe-area-inset-top, 16px)) 16px max(24px, env(safe-area-inset-bottom, 24px)) 16px;
+      padding: max(16px, env(safe-area-inset-top, 16px)) 14px calc(max(36px, env(safe-area-inset-bottom, 36px)) + 60px) 14px;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      z-index: 9999;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      z-index: 100000;
     }
 
     .feedback-modal-card {
       width: 100%;
       max-width: 520px;
-      max-height: calc(100dvh - 32px);
-      overflow-y: auto;
-      padding: 24px;
+      height: auto;
+      min-height: min-content;
+      max-height: none;
+      overflow: visible;
+      padding: 22px 18px 26px 18px;
       display: flex;
       flex-direction: column;
       gap: 16px;
       border: 1px solid rgba(56, 189, 248, 0.35);
       box-shadow: 0 0 35px rgba(56, 189, 248, 0.12), 0 20px 40px rgba(0, 0, 0, 0.7);
       outline: none;
-      margin-top: 0;
+      margin: 0 auto;
     }
 
     @media (min-width: 641px) {
       .feedback-modal-backdrop {
-        align-items: center;
-        padding: 24px 16px;
+        padding: 32px 16px calc(env(safe-area-inset-bottom, 24px) + 50px) 16px;
       }
       .feedback-modal-card {
-        max-height: 90vh;
+        padding: 26px 24px 30px 24px;
       }
     }
 
@@ -758,6 +761,16 @@ export class FeedbackModalComponent implements OnInit, AfterViewInit, OnDestroy 
         const compressed = await this.compressImage(file);
         this.attachments.push(compressed);
       }
+
+      // Smoothly scroll down so newly attached pictures & submit actions are immediately visible
+      setTimeout(() => {
+        if (this.modalBackdrop?.nativeElement) {
+          this.modalBackdrop.nativeElement.scrollTo({
+            top: this.modalBackdrop.nativeElement.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
     } catch (err) {
       console.warn('Image processing failed:', err);
     } finally {
@@ -843,6 +856,7 @@ export class FeedbackModalComponent implements OnInit, AfterViewInit, OnDestroy 
   ngOnInit(): void {
     if (typeof document !== 'undefined') {
       document.body.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
     }
     // Asynchronously resolve precise native smartphone model and Android version
     this.feedbackService.getDeviceDiagnosticInfo().then(info => {
@@ -851,11 +865,10 @@ export class FeedbackModalComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   ngAfterViewInit(): void {
-    // Focus the popup card and ensure it starts at the top position of the device viewport
+    // Focus the popup card and ensure it starts at the top position of the viewport
     requestAnimationFrame(() => {
-      if (this.modalCard?.nativeElement) {
-        this.modalCard.nativeElement.scrollTop = 0;
-        this.modalCard.nativeElement.focus({ preventScroll: true });
+      if (this.modalBackdrop?.nativeElement) {
+        this.modalBackdrop.nativeElement.scrollTop = 0;
       }
       setTimeout(() => {
         if (this.titleInput?.nativeElement) {
@@ -868,6 +881,7 @@ export class FeedbackModalComponent implements OnInit, AfterViewInit, OnDestroy 
   ngOnDestroy(): void {
     if (typeof document !== 'undefined') {
       document.body.style.overflow = '';
+      document.body.classList.remove('modal-open');
     }
   }
 

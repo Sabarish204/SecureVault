@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { Capacitor } from '@capacitor/core';
 import { NetworkStatusService } from './network-status.service';
 import { AppUpdateService } from '../update/app-update.service';
@@ -23,6 +23,16 @@ export class FeedbackService {
    * If not set or offline, falls back to direct GitHub issue creation.
    */
   proxyEndpoint: string = 'https://securevault-feedback.sabarish204.workers.dev';
+
+  readonly isOpen = signal<boolean>(false);
+
+  open(): void {
+    this.isOpen.set(true);
+  }
+
+  close(): void {
+    this.isOpen.set(false);
+  }
 
   readonly categories: FeedbackCategoryOption[] = [
     { value: 'FEATURE', label: 'Feature Suggestion', icon: 'lightbulb', tagClass: 'tag-feature' },

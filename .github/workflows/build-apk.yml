@@ -86,25 +86,23 @@ jobs:
             Download **[SecureVault.apk](https://github.com/Sabarish204/SecureVault/releases/download/v1.0.${{ github.run_number }}/SecureVault.apk)**
             
             ### 🚀 What's New in this Build:
-            * **Progressive PIN Lockout & Anti-Brute-Force**:
-              - Added rate limiting with progressive security cooldowns (30s after 5 failed attempts, 60s after 6–9 attempts, 5m after 10+ attempts).
-              - Persistent cooldown timer across app refreshes/restarts with active countdown banner.
-              - PIN inputs and biometric triggers automatically lock during cooldown periods.
-            * **Universal Card Detection & Fixes**:
-              - Fixed Indian RuPay 6529 range (`652150–653149`), preventing incorrect Discover classification.
-              - Corrected JCB BIN range (`3528–3589`) and refreshed brand logo.
-            * **Realistic Card Artwork & Themes**:
-              - Tailored luxury presets for 30+ programs (HDFC Pixel, Millennia, Axis IndianOil, Kotak League, SBI BPCL Octane, ICICI Amex, etc.).
-              - Procedural luxury theme generator for any unlisted cards worldwide.
-              - Live interactive card preview inside the credential form as you type.
-              - Added custom background image URL support (`cardImageUrl`).
-            * **Responsive Card Mockup**:
-              - Auto-stretching dynamic height and clamp typography to eliminate cardholder name or bottom row clipping on mobile screens.
-            * **Backup & Verification Enhancements**:
-              - Detailed backup export inspection modal showing UUID, byte size, and AES-256-GCM verification.
-            * **Feedback & Diagnostics**:
-              - Added smartphone full model mapping (e.g. `Samsung Galaxy A55 5G (SM-A556B)`) and Android OS version to in-app feedback dialog and GitHub issue reports for streamlined debugging.
-              - Added structured GitHub Issue forms (.github/ISSUE_TEMPLATE) capturing full smartphone model and Android version.
+            * **🔍 Universal Omnibar Global Search**:
+              - Prominent top header search bar with `Ctrl + K` desktop shortcut and responsive mobile expansion.
+              - Live categorized suggestions dropdown across payment cards, bank logins, settings (PIN, fingerprint, backups), and quick creation actions.
+              - Searches by bank name, customer ID, card program, and last 4 digits (e.g. `6529`).
+              - Streamlined bottom navigation bar with a balanced 4-item layout.
+            * **📷 Physical Card Scanner (Front & Back) with 100% On-Device OCR**:
+              - Scan or upload card photos directly in the card form with a live card viewfinder overlay.
+              - Front side extracts Card Number (Luhn-validated), Expiry Date (MM/YY), Cardholder Name, and Card Brand.
+              - Back side extracts CVV / Security Code.
+              - 1-tap auto-fill review sheet; 100% local-first and offline with zero card data leaving your device.
+            * **👆 Native Android Back Navigation & Swipe Gestures**:
+              - Handled hardware back button via Capacitor: dismisses open modals first, navigates back smoothly through screens, and provides double-tap exit confirmation on Dashboard to prevent accidental app termination.
+              - Touch edge-swipe navigation: Swipe left-to-right to navigate back, swipe right-to-left to navigate forward.
+            * **📸 Feedback Modal Screenshots & In-App Update Enhancements**:
+              - Attach up to 3 compressed screenshots/photos directly to bug reports and suggestions.
+              - Fixed mobile scrolling and bottom navbar layering on modals.
+              - Added "Download in Browser" 1-tap fallback for in-app update downloads.
 
             *Build: `#${{ github.run_number }}` • Commit: `${{ github.sha }}`*
           files: |

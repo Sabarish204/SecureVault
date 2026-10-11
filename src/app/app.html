@@ -7,4 +7,8 @@
 
   <app-bottom-nav></app-bottom-nav>
   <app-update-dialog></app-update-dialog>
+  <app-feedback-modal
+    *ngIf="feedbackService.isOpen()"
+    (close)="feedbackService.close()"
+  ></app-feedback-modal>
 </div>

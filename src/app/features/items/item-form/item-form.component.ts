@@ -11,6 +11,7 @@ import { BankDirectoryService, IndianBank } from '../../../core/services/bank-di
 import { ClipboardSafetyService } from '../../../core/services/clipboard-safety.service';
 import { CardDetectorService, CardNetworkMeta } from '../../../core/services/card-detector.service';
 import { CardPreviewComponent } from '../../../shared/components/card-preview/card-preview.component';
+import { CardScannerModalComponent, CardScanAutoFillData } from '../../../shared/components/card-scanner-modal/card-scanner-modal.component';
 import { VaultValidators } from '../../../shared/validators/vault.validators';
 import {
   BankingAccountPayload,
@@ -30,7 +31,8 @@ import {
     MatButtonModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
-    CardPreviewComponent
+    CardPreviewComponent,
+    CardScannerModalComponent
   ],
   template: `
     <div class="form-page-wrapper animate-fade-in">
@@ -347,6 +349,19 @@ import {
             ></app-card-preview>
           </div>
 
+          <!-- Physical Card Scanner Action Bar -->
+          <div class="scan-card-action-bar">
+            <button
+              type="button"
+              class="btn-scan-card"
+              (click)="openCardScanner()"
+            >
+              <span class="material-symbols-outlined scan-icon">document_scanner</span>
+              <span class="scan-btn-text">Scan Physical Card (Front & Back)</span>
+              <span class="scan-pill">AUTO-FILL</span>
+            </button>
+          </div>
+
           <!-- Searchable Bank / Card Issuer Dropdown Field -->
           <div class="form-field bank-dropdown-container card-bank-dropdown-container">
             <label class="field-label" for="cardBankSearchInput">Select Issuing Bank / Card Issuer *</label>
@@ -621,6 +636,13 @@ import {
           </button>
         </form>
       </div>
+
+      <!-- Card Scanner Modal -->
+      <app-card-scanner-modal
+        *ngIf="isCardScannerOpen()"
+        (cardScanned)="onCardScanned($event)"
+        (close)="isCardScannerOpen.set(false)"
+      ></app-card-scanner-modal>
     </div>
   `,
   styles: [`
@@ -636,6 +658,51 @@ import {
     .form-nav-row {
       display: flex;
       align-items: center;
+    }
+
+    .scan-card-action-bar {
+      margin-bottom: 16px;
+    }
+
+    .btn-scan-card {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 18px;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, rgba(129, 140, 248, 0.18) 100%);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      border-radius: var(--radius-md);
+      color: #38bdf8;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(56, 189, 248, 0.15);
+      transition: all 0.2s ease;
+    }
+
+    .btn-scan-card:hover {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(129, 140, 248, 0.28) 100%);
+      border-color: #38bdf8;
+      box-shadow: 0 6px 22px rgba(56, 189, 248, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .scan-icon {
+      font-size: 22px;
+      color: #38bdf8;
+    }
+
+    .scan-pill {
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      padding: 2px 7px;
+      background: rgba(34, 197, 94, 0.2);
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      color: #4ade80;
+      border-radius: 9999px;
     }
 
     .back-link {
@@ -1311,6 +1378,7 @@ export class ItemFormComponent implements OnInit {
   // Card Detection Signals
   readonly detectedCardMeta = signal<CardNetworkMeta | null>(null);
   readonly isUnrecognizedCardNetwork = signal<boolean>(false);
+  readonly isCardScannerOpen = signal<boolean>(false);
 
   bankingForm!: FormGroup;
   cardForm!: FormGroup;
@@ -1347,6 +1415,45 @@ export class ItemFormComponent implements OnInit {
         this.loadExistingItem(id);
       }
     });
+  }
+
+  openCardScanner(): void {
+    this.isCardScannerOpen.set(true);
+  }
+
+  onCardScanned(data: CardScanAutoFillData): void {
+    if (data.cardNumber) {
+      const formatted = this.cardDetector.formatCardNumber(data.cardNumber);
+      this.cardForm.get('cardNumber')?.setValue(formatted);
+      this.cardForm.get('cardNumber')?.markAsDirty();
+      this.updateDetectedCard(data.cardNumber);
+    }
+    if (data.cardholderName) {
+      this.cardForm.get('cardholderName')?.setValue(data.cardholderName);
+      this.cardForm.get('cardholderName')?.markAsDirty();
+    }
+    if (data.expiryMonth) {
+      this.cardForm.get('expiryMonth')?.setValue(data.expiryMonth);
+      this.cardForm.get('expiryMonth')?.markAsDirty();
+    }
+    if (data.expiryYear) {
+      this.cardForm.get('expiryYear')?.setValue(data.expiryYear);
+      this.cardForm.get('expiryYear')?.markAsDirty();
+    }
+    if (data.cvv) {
+      this.cardForm.get('cvv')?.setValue(data.cvv);
+      this.cardForm.get('cvv')?.markAsDirty();
+    }
+
+    // Set default nickname if empty
+    if (!this.cardForm.get('cardNickname')?.value) {
+      const brand = data.cardBrand || 'Card';
+      const last4 = data.cardNumber ? data.cardNumber.slice(-4) : '';
+      const defaultName = last4 ? `${brand} •••• ${last4}` : `${brand}`;
+      this.cardForm.get('cardNickname')?.setValue(defaultName);
+    }
+
+    this.isCardScannerOpen.set(false);
   }
 
   private initForms(): void {

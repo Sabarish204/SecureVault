@@ -30,7 +30,15 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/styles.scss"]
+            "styles": ["src/styles.scss"],
+            "allowedCommonJsDependencies": [
+              "tesseract.js",
+              "regenerator-runtime",
+              "regenerator-runtime/runtime",
+              "bmp-js",
+              "zlibjs",
+              "is-url"
+            ]
           },
           "configurations": {
             "production": {

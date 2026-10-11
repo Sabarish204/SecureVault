@@ -18,7 +18,7 @@ describe('BankDirectoryService', () => {
 
   it('should return all Indian banks with id, name, and loginUrl', () => {
     const banks = service.getAllBanks();
-    expect(banks.length).toBeGreaterThanOrEqual(40);
+    expect(banks.length).toBeGreaterThanOrEqual(90);
     
     banks.forEach(bank => {
       expect(bank.id).toBeDefined();
@@ -27,7 +27,7 @@ describe('BankDirectoryService', () => {
     });
   });
 
-  it('should search banks by name or shortCode', () => {
+  it('should search banks by name, category, or shortCode', () => {
     const sbiResults = service.searchBanks('sbi');
     expect(sbiResults.length).toBeGreaterThan(0);
     expect(sbiResults.some(b => b.name.includes('State Bank of India'))).toBe(true);
@@ -35,6 +35,14 @@ describe('BankDirectoryService', () => {
     const hdfcResults = service.searchBanks('HDFC');
     expect(hdfcResults.length).toBeGreaterThan(0);
     expect(hdfcResults[0].name).toContain('HDFC');
+
+    const amexResults = service.searchBanks('Amex');
+    expect(amexResults.length).toBeGreaterThan(0);
+    expect(amexResults[0].name).toContain('American Express');
+
+    const coopResults = service.searchBanks('Saraswat');
+    expect(coopResults.length).toBeGreaterThan(0);
+    expect(coopResults[0].category).toBe('Co-operative');
   });
 
   it('should get bank by id and by name', () => {

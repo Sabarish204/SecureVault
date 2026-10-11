@@ -1,31 +1,49 @@
-import { Component, Input, signal, inject } from '@angular/core';
+import { Component, Input, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MaskCardPipe } from '../../pipes/mask-card.pipe';
 import { MaskCvvPipe } from '../../pipes/mask-cvv.pipe';
 import { ClipboardSafetyService } from '../../../core/services/clipboard-safety.service';
+import { CardDetectorService, CardNetworkMeta } from '../../../core/services/card-detector.service';
+import { CardThemeService, CardTheme } from '../../../core/services/card-theme.service';
 
 @Component({
   selector: 'app-card-preview',
   standalone: true,
   imports: [CommonModule, MaskCardPipe, MaskCvvPipe],
   template: `
-    <div class="card-mockup" [class.debit-card]="category === 'DEBIT_CARD'">
+    <div
+      class="card-mockup"
+      [style.background]="mockupBackground"
+      [style.box-shadow]="mockupShadow"
+    >
+      <!-- Background Vector Artwork Overlay -->
+      <div class="card-art-overlay" *ngIf="sanitizedArtOverlay" [innerHTML]="sanitizedArtOverlay"></div>
       <div class="card-ambient-overlay"></div>
       
-      <!-- Top Row: Type & Chip -->
+      <!-- Top Row: Type, Chip, Co-Brand & Network -->
       <div class="card-top">
         <div class="chip-container">
-          <div class="emv-chip"></div>
+          <div class="emv-chip" [class.silver]="theme.chipColor === 'silver'"></div>
           <span class="material-symbols-outlined contactless-icon">contactless</span>
         </div>
-        <div class="card-type-badge">
-          {{ category === 'DEBIT_CARD' ? 'DEBIT' : 'CREDIT' }}
+        <div class="card-badges-row">
+          <div class="card-cobrand-wrap" *ngIf="sanitizedCoBrand" [innerHTML]="sanitizedCoBrand"></div>
+          <div class="card-type-badge" [style.background]="theme.cardTypeBadgeBg || 'rgba(255, 255, 255, 0.15)'">
+            {{ category === 'DEBIT_CARD' ? 'DEBIT' : 'CREDIT' }}
+          </div>
+          <div class="card-network-badge" *ngIf="detectedNetwork">
+            {{ detectedNetwork.name }}
+          </div>
         </div>
       </div>
 
       <!-- Card Nickname / Bank Name -->
       <div class="card-bank-info">
-        <span class="card-nickname">{{ nickname || 'Personal Card' }}</span>        
+        <div class="card-bank-text-wrap">
+          <span class="card-bank-name" *ngIf="bankName || theme.bankName">{{ bankName || theme.bankName }}</span>
+          <span class="card-nickname">{{ nickname || theme.productName }}</span>
+        </div>
       </div>
 
       <!-- Card Number with Mask & Actions -->
@@ -95,23 +113,31 @@ import { ClipboardSafetyService } from '../../../core/services/clipboard-safety.
       width: 100%;
       max-width: 420px;
       margin: 0 auto 20px auto;
-      aspect-ratio: 1.586;
+      height: auto;
+      min-height: 220px;
       border-radius: 18px;
       padding: 20px 24px;
-      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #0f172a 100%);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.8), 0 0 20px rgba(129, 140, 248, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.18);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      gap: 16px;
       color: #ffffff;
       overflow: hidden;
       box-sizing: border-box;
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+      z-index: 1;
     }
 
-    .card-mockup.debit-card {
-      background: linear-gradient(135deg, #064e3b 0%, #065f46 45%, #0f172a 100%);
-      box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.8), 0 0 20px rgba(52, 211, 153, 0.15);
+    .card-art-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: 1;
+      overflow: hidden;
     }
 
     .card-ambient-overlay {
@@ -120,8 +146,14 @@ import { ClipboardSafetyService } from '../../../core/services/clipboard-safety.
       left: 0;
       right: 0;
       bottom: 0;
-      background: radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.12) 0%, transparent 60%);
+      background: radial-gradient(circle at 85% 15%, rgba(255, 255, 255, 0.12) 0%, transparent 60%);
       pointer-events: none;
+      z-index: 1;
+    }
+
+    .card-top, .card-bank-info, .card-number-row, .card-bottom {
+      position: relative;
+      z-index: 2;
     }
 
     .card-top {
@@ -143,6 +175,12 @@ import { ClipboardSafetyService } from '../../../core/services/clipboard-safety.
       background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
       border: 1px solid #b45309;
       position: relative;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .emv-chip.silver {
+      background: linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%);
+      border: 1px solid #64748b;
     }
 
     .emv-chip::after {
@@ -160,21 +198,60 @@ import { ClipboardSafetyService } from '../../../core/services/clipboard-safety.
       color: rgba(255, 255, 255, 0.7);
     }
 
+    .card-badges-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-cobrand-wrap {
+      display: flex;
+      align-items: center;
+    }
+
     .card-type-badge {
       font-size: 0.75rem;
       font-weight: 800;
       letter-spacing: 0.1em;
       padding: 4px 10px;
       border-radius: 6px;
-      background: rgba(255, 255, 255, 0.15);
       backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .card-network-badge {
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
     }
 
     .card-bank-info {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-top: -6px;
+      margin-top: 0;
+    }
+
+    .card-bank-text-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .card-bank-name {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.75);
     }
 
     .card-nickname {
@@ -182,39 +259,34 @@ import { ClipboardSafetyService } from '../../../core/services/clipboard-safety.
       font-weight: 700;
       letter-spacing: 0.02em;
       color: rgba(255, 255, 255, 0.95);
-    }
-
-    .test-label {
-      font-size: 0.65rem;
-      font-weight: 700;
-      color: #fbbf24;
-      background: rgba(251, 191, 36, 0.2);
-      border: 1px dashed rgba(251, 191, 36, 0.4);
-      padding: 2px 6px;
-      border-radius: 4px;
+      line-height: 1.25;
     }
 
     .card-number-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: rgba(0, 0, 0, 0.25);
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
       border-radius: 8px;
       padding: 6px 12px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .card-number {
-      font-size: 1.15rem;
+      font-size: clamp(0.92rem, 3.8vw, 1.15rem);
       font-weight: 600;
-      letter-spacing: 0.12em;
+      letter-spacing: clamp(0.04em, 1.2vw, 0.12em);
       color: #ffffff;
+      white-space: nowrap;
     }
 
     .card-mini-actions {
       display: flex;
       align-items: center;
       gap: 4px;
+      flex-shrink: 0;
     }
 
     .mini-btn {
@@ -239,6 +311,18 @@ import { ClipboardSafetyService } from '../../../core/services/clipboard-safety.
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
+      gap: 12px;
+      padding-top: 2px;
+    }
+
+    .card-holder-col {
+      flex: 1;
+      min-width: 0;
+      margin-right: 8px;
+    }
+
+    .card-expiry-col, .card-cvv-col {
+      flex-shrink: 0;
     }
 
     .card-holder-col, .card-expiry-col, .card-cvv-col {
@@ -252,6 +336,7 @@ import { ClipboardSafetyService } from '../../../core/services/clipboard-safety.
       color: rgba(255, 255, 255, 0.6);
       letter-spacing: 0.08em;
       margin-bottom: 2px;
+      text-transform: uppercase;
     }
 
     .col-value {
@@ -259,6 +344,8 @@ import { ClipboardSafetyService } from '../../../core/services/clipboard-safety.
       font-weight: 600;
       letter-spacing: 0.05em;
       text-transform: uppercase;
+      word-break: break-word;
+      line-height: 1.3;
     }
 
     .cvv-flex {
@@ -282,10 +369,20 @@ import { ClipboardSafetyService } from '../../../core/services/clipboard-safety.
 
     @media (max-width: 400px) {
       .card-mockup {
-        padding: 14px 16px;
+        padding: 16px 16px;
+        min-height: 200px;
+        gap: 12px;
       }
       .card-number {
-        font-size: 0.98rem;
+        font-size: clamp(0.82rem, 3.5vw, 0.98rem);
+        letter-spacing: clamp(0.02em, 0.8vw, 0.08em);
+      }
+      .card-badges-row {
+        gap: 4px;
+      }
+      .card-type-badge, .card-network-badge {
+        padding: 3px 6px;
+        font-size: 0.68rem;
       }
     }
   `]
@@ -297,9 +394,49 @@ export class CardPreviewComponent {
   @Input({ required: true }) expiryYear!: string;
   @Input() cvv?: string;
   @Input() nickname?: string;
+  @Input() bankName?: string;
   @Input() category: 'CREDIT_CARD' | 'DEBIT_CARD' = 'CREDIT_CARD';
+  @Input() customBgImage?: string;
 
   private readonly clipboard = inject(ClipboardSafetyService);
+  private readonly cardDetector = inject(CardDetectorService);
+  private readonly cardThemeService = inject(CardThemeService);
+  private readonly sanitizer = inject(DomSanitizer);
+
+  get detectedNetwork(): CardNetworkMeta | null {
+    return this.cardDetector.detectCard(this.cardNumber);
+  }
+
+  get theme(): CardTheme {
+    return this.cardThemeService.resolveTheme(
+      this.cardNumber,
+      this.bankName,
+      this.nickname,
+      this.category
+    );
+  }
+
+  get sanitizedArtOverlay(): SafeHtml | null {
+    const svg = this.theme.artOverlaySvg;
+    return svg ? this.sanitizer.bypassSecurityTrustHtml(svg) : null;
+  }
+
+  get sanitizedCoBrand(): SafeHtml | null {
+    const svg = this.theme.coBrandLogoSvg;
+    return svg ? this.sanitizer.bypassSecurityTrustHtml(svg) : null;
+  }
+
+  get mockupBackground(): string {
+    if (this.customBgImage) {
+      return `url('${this.customBgImage}') center/cover no-repeat, ${this.theme.background}`;
+    }
+    return this.theme.background;
+  }
+
+  get mockupShadow(): string {
+    return `0 20px 35px -10px rgba(0, 0, 0, 0.8), 0 0 25px ${this.theme.accentGlow}`;
+  }
+
   readonly isNumberRevealed = signal<boolean>(false);
   readonly isCvvRevealed = signal<boolean>(false);
 

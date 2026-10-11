@@ -4,7 +4,7 @@ export interface IndianBank {
   id: number;
   name: string;
   loginUrl: string;
-  category?: 'Public Sector' | 'Private Sector' | 'Small Finance' | 'Payments' | 'Foreign';
+  category?: 'Public Sector' | 'Private Sector' | 'Small Finance' | 'Payments' | 'Foreign' | 'Co-operative' | 'Regional Rural';
   shortCode?: string;
 }
 
@@ -375,6 +375,326 @@ export class BankDirectoryService {
       loginUrl: 'https://www.dbs.com/in/index/default.page',
       category: 'Foreign',
       shortCode: 'DBS'
+    },
+
+    // --- Additional Private Sector Banks & Card Issuers ---
+    {
+      id: 51,
+      name: 'Nainital Bank',
+      loginUrl: 'https://www.nainitalbank.co.in',
+      category: 'Private Sector',
+      shortCode: 'NTB'
+    },
+    {
+      id: 52,
+      name: 'SBM Bank India (State Bank of Mauritius)',
+      loginUrl: 'https://www.sbmbank.co.in',
+      category: 'Private Sector',
+      shortCode: 'SBM'
+    },
+    {
+      id: 53,
+      name: 'SBI Card (SBI Cards & Payment Services)',
+      loginUrl: 'https://www.sbicard.com',
+      category: 'Public Sector',
+      shortCode: 'SBICARD'
+    },
+    {
+      id: 54,
+      name: 'BOBCARD (BOB Financial Solutions)',
+      loginUrl: 'https://www.bobcard.co.in',
+      category: 'Public Sector',
+      shortCode: 'BOBCARD'
+    },
+    {
+      id: 55,
+      name: 'OneCard (FPL Technologies / Partner Banks)',
+      loginUrl: 'https://getonecard.app',
+      category: 'Private Sector',
+      shortCode: 'ONECARD'
+    },
+    {
+      id: 56,
+      name: 'Scapia (Federal Bank Co-branded Card)',
+      loginUrl: 'https://www.scapia.cards',
+      category: 'Private Sector',
+      shortCode: 'SCAPIA'
+    },
+
+    // --- Additional Small Finance Banks ---
+    {
+      id: 57,
+      name: 'Unity Small Finance Bank',
+      loginUrl: 'https://theunitybank.com',
+      category: 'Small Finance',
+      shortCode: 'UNITY'
+    },
+    {
+      id: 58,
+      name: 'Shivalik Small Finance Bank',
+      loginUrl: 'https://shivalikbank.com',
+      category: 'Small Finance',
+      shortCode: 'SHIVALIK'
+    },
+    {
+      id: 59,
+      name: 'North East Small Finance Bank',
+      loginUrl: 'https://www.nesfb.com',
+      category: 'Small Finance',
+      shortCode: 'NESFB'
+    },
+    {
+      id: 60,
+      name: 'slice (North East SFB Credit Line / Card)',
+      loginUrl: 'https://www.sliceit.com',
+      category: 'Small Finance',
+      shortCode: 'SLICE'
+    },
+    {
+      id: 61,
+      name: 'Fincare Small Finance Bank',
+      loginUrl: 'https://fincarebank.com',
+      category: 'Small Finance',
+      shortCode: 'FINCARE'
+    },
+
+    // --- Additional Payments Banks ---
+    {
+      id: 62,
+      name: 'NSDL Payments Bank',
+      loginUrl: 'https://www.nsdlbank.com',
+      category: 'Payments',
+      shortCode: 'NSDL'
+    },
+
+    // --- Additional Foreign Banks & Card Issuers ---
+    {
+      id: 63,
+      name: 'American Express (Amex)',
+      loginUrl: 'https://www.americanexpress.com/en-in/',
+      category: 'Foreign',
+      shortCode: 'AMEX'
+    },
+    {
+      id: 64,
+      name: 'Barclays Bank India',
+      loginUrl: 'https://www.barclays.in',
+      category: 'Foreign',
+      shortCode: 'BARCLAYS'
+    },
+    {
+      id: 65,
+      name: 'Bank of America India',
+      loginUrl: 'https://www.bankofamerica.com',
+      category: 'Foreign',
+      shortCode: 'BOA'
+    },
+    {
+      id: 66,
+      name: 'J.P. Morgan Chase Bank India',
+      loginUrl: 'https://www.jpmorgan.com/IN/en/about-us',
+      category: 'Foreign',
+      shortCode: 'JPMC'
+    },
+    {
+      id: 67,
+      name: 'MUFG Bank India (Mitsubishi UFJ)',
+      loginUrl: 'https://www.bk.mufg.jp/global/globalnetwork/asiaoceania/india.html',
+      category: 'Foreign',
+      shortCode: 'MUFG'
+    },
+    {
+      id: 68,
+      name: 'BNP Paribas India',
+      loginUrl: 'https://www.bnpparibas.co.in',
+      category: 'Foreign',
+      shortCode: 'BNP'
+    },
+    {
+      id: 69,
+      name: 'Societe Generale India',
+      loginUrl: 'https://www.societegenerale.asia/en/countries/india/',
+      category: 'Foreign',
+      shortCode: 'SOCGEN'
+    },
+    {
+      id: 70,
+      name: 'Shinhan Bank India',
+      loginUrl: 'https://in.shinhan.com',
+      category: 'Foreign',
+      shortCode: 'SHINHAN'
+    },
+    {
+      id: 71,
+      name: 'Doha Bank India',
+      loginUrl: 'https://in.dohabank.com',
+      category: 'Foreign',
+      shortCode: 'DOHA'
+    },
+    {
+      id: 72,
+      name: 'First Abu Dhabi Bank (FAB) India',
+      loginUrl: 'https://www.bankfab.com/en-in',
+      category: 'Foreign',
+      shortCode: 'FAB'
+    },
+    {
+      id: 73,
+      name: 'Qatar National Bank (QNB) India',
+      loginUrl: 'https://www.qnb.com/sites/qnb/qnbindia/page/en/enhome.html',
+      category: 'Foreign',
+      shortCode: 'QNB'
+    },
+
+    // --- Major Scheduled Urban Co-operative Banks ---
+    {
+      id: 74,
+      name: 'Saraswat Co-operative Bank',
+      loginUrl: 'https://www.saraswatbank.com',
+      category: 'Co-operative',
+      shortCode: 'SARASWAT'
+    },
+    {
+      id: 75,
+      name: 'Cosmos Co-operative Bank',
+      loginUrl: 'https://www.cosmosbank.com',
+      category: 'Co-operative',
+      shortCode: 'COSMOS'
+    },
+    {
+      id: 76,
+      name: 'SVC Co-operative Bank (Shamrao Vithal)',
+      loginUrl: 'https://www.svcbank.com',
+      category: 'Co-operative',
+      shortCode: 'SVC'
+    },
+    {
+      id: 77,
+      name: 'TJSB Sahakari Bank',
+      loginUrl: 'https://www.tjsbbank.co.in',
+      category: 'Co-operative',
+      shortCode: 'TJSB'
+    },
+    {
+      id: 78,
+      name: 'Bharat Co-operative Bank',
+      loginUrl: 'https://www.bharatbank.com',
+      category: 'Co-operative',
+      shortCode: 'BHARAT'
+    },
+    {
+      id: 79,
+      name: 'Abhyudaya Co-operative Bank',
+      loginUrl: 'https://www.abhyudayabank.co.in',
+      category: 'Co-operative',
+      shortCode: 'ABHYUDAYA'
+    },
+    {
+      id: 80,
+      name: 'NKGSB Co-operative Bank',
+      loginUrl: 'https://www.nkgsb-bank.com',
+      category: 'Co-operative',
+      shortCode: 'NKGSB'
+    },
+    {
+      id: 81,
+      name: 'Kalupur Commercial Co-operative Bank',
+      loginUrl: 'https://www.kalupurbank.com',
+      category: 'Co-operative',
+      shortCode: 'KALUPUR'
+    },
+    {
+      id: 82,
+      name: 'Janata Sahakari Bank (Pune)',
+      loginUrl: 'https://www.janatabankpune.com',
+      category: 'Co-operative',
+      shortCode: 'JSBP'
+    },
+
+    // --- Major Regional Rural Banks (RRBs) ---
+    {
+      id: 83,
+      name: 'Kerala Gramin Bank',
+      loginUrl: 'https://keralagbank.com',
+      category: 'Regional Rural',
+      shortCode: 'KGB'
+    },
+    {
+      id: 84,
+      name: 'Karnataka Gramin Bank',
+      loginUrl: 'https://karnatakagraminbank.com',
+      category: 'Regional Rural',
+      shortCode: 'KAGB'
+    },
+    {
+      id: 85,
+      name: 'Baroda UP Bank',
+      loginUrl: 'https://www.barodaupbank.in',
+      category: 'Regional Rural',
+      shortCode: 'BUPB'
+    },
+    {
+      id: 86,
+      name: 'Aryavart Bank',
+      loginUrl: 'https://aryavart-rrb.com',
+      category: 'Regional Rural',
+      shortCode: 'ARYAVART'
+    },
+    {
+      id: 87,
+      name: 'Prathama UP Gramin Bank',
+      loginUrl: 'https://www.prathamaupbank.com',
+      category: 'Regional Rural',
+      shortCode: 'PUPB'
+    },
+    {
+      id: 88,
+      name: 'Andhra Pragathi Grameena Bank',
+      loginUrl: 'https://www.apgb.in',
+      category: 'Regional Rural',
+      shortCode: 'APGB'
+    },
+    {
+      id: 89,
+      name: 'Maharashtra Gramin Bank',
+      loginUrl: 'https://www.mahagramin.in',
+      category: 'Regional Rural',
+      shortCode: 'MGB'
+    },
+    {
+      id: 90,
+      name: 'Tamil Nadu Grama Bank',
+      loginUrl: 'https://www.tamilnadugramabank.com',
+      category: 'Regional Rural',
+      shortCode: 'TNGB'
+    },
+    {
+      id: 91,
+      name: 'Saurashtra Gramin Bank',
+      loginUrl: 'https://sgruralbank.com',
+      category: 'Regional Rural',
+      shortCode: 'SGB'
+    },
+    {
+      id: 92,
+      name: 'Punjab Gramin Bank',
+      loginUrl: 'https://pgb.org.in',
+      category: 'Regional Rural',
+      shortCode: 'PGB'
+    },
+    {
+      id: 93,
+      name: 'Chaitanya Godavari Grameena Bank',
+      loginUrl: 'https://www.cggb.in',
+      category: 'Regional Rural',
+      shortCode: 'CGGB'
+    },
+    {
+      id: 94,
+      name: 'Telangana Grameena Bank',
+      loginUrl: 'https://www.tgbhyd.in',
+      category: 'Regional Rural',
+      shortCode: 'TGB'
     }
   ];
 

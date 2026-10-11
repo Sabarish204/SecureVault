@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal, computed, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -8,6 +9,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { VaultStateService } from '../../../core/state/vault-state.service';
 import { BankDirectoryService, IndianBank } from '../../../core/services/bank-directory.service';
 import { ClipboardSafetyService } from '../../../core/services/clipboard-safety.service';
+import { CardDetectorService, CardNetworkMeta } from '../../../core/services/card-detector.service';
+import { CardPreviewComponent } from '../../../shared/components/card-preview/card-preview.component';
 import { VaultValidators } from '../../../shared/validators/vault.validators';
 import {
   BankingAccountPayload,
@@ -26,7 +29,8 @@ import {
     RouterModule,
     MatButtonModule,
     MatProgressSpinnerModule,
-    MatTooltipModule
+    MatTooltipModule,
+    CardPreviewComponent
   ],
   template: `
     <div class="form-page-wrapper animate-fade-in">
@@ -85,7 +89,7 @@ import {
         <form *ngIf="selectedCategory() === 'BANKING'" [formGroup]="bankingForm" (ngSubmit)="onSubmitBanking()" class="credential-form">
           
           <!-- Searchable Bank Dropdown Field -->
-          <div class="form-field bank-dropdown-container">
+          <div class="form-field bank-dropdown-container banking-dropdown-container">
             <label class="field-label" for="bankSearchInput">Select Indian Bank / Financial Institution *</label>
 
             <!-- State A: Selected Bank Card -->
@@ -121,7 +125,7 @@ import {
                   [ngModel]="bankSearchQuery()"
                   (ngModelChange)="onBankSearchChange($event)"
                   [ngModelOptions]="{standalone: true}"
-                  placeholder="Search 50+ Indian Banks (e.g. SBI, HDFC, ICICI, Axis)..."
+                  placeholder="Search 90+ Indian Banks (e.g. SBI, HDFC, ICICI, Axis, Amex)..."
                   class="form-input search-field font-sans"
                   autocomplete="off"
                   (focus)="openBankDropdown()"
@@ -328,6 +332,121 @@ import {
 
         <!-- 2. PAYMENT CARD FORM (CREDIT & DEBIT) -->
         <form *ngIf="selectedCategory() === 'CREDIT_CARD' || selectedCategory() === 'DEBIT_CARD'" [formGroup]="cardForm" (ngSubmit)="onSubmitCard()" class="credential-form">
+          <!-- Real-Time Interactive Card Preview Mockup -->
+          <div class="card-preview-form-box">
+            <app-card-preview
+              [cardNumber]="cardForm.get('cardNumber')?.value || ''"
+              [cardholderName]="cardForm.get('cardholderName')?.value || ''"
+              [expiryMonth]="cardForm.get('expiryMonth')?.value || ''"
+              [expiryYear]="cardForm.get('expiryYear')?.value || ''"
+              [cvv]="cardForm.get('cvv')?.value || ''"
+              [nickname]="cardForm.get('cardNickname')?.value || ''"
+              [bankName]="cardForm.get('bankName')?.value || ''"
+              [category]="selectedCategory() === 'DEBIT_CARD' ? 'DEBIT_CARD' : 'CREDIT_CARD'"
+              [customBgImage]="cardForm.get('cardImageUrl')?.value || ''"
+            ></app-card-preview>
+          </div>
+
+          <!-- Searchable Bank / Card Issuer Dropdown Field -->
+          <div class="form-field bank-dropdown-container card-bank-dropdown-container">
+            <label class="field-label" for="cardBankSearchInput">Select Issuing Bank / Card Issuer *</label>
+
+            <!-- State A: Selected Bank Card -->
+            <div *ngIf="selectedCardBank() && !isCardBankDropdownOpen()" class="selected-bank-card glass-panel">
+              <div class="bank-avatar">
+                <span class="material-symbols-outlined">account_balance</span>
+              </div>
+              <div class="bank-card-meta">
+                <span class="bank-card-name">{{ selectedCardBank()!.name }}</span>
+                <div class="bank-card-tags">
+                  <span class="bank-tag" *ngIf="selectedCardBank()!.category">{{ selectedCardBank()!.category }}</span>
+                  <span class="bank-code-tag" *ngIf="selectedCardBank()!.shortCode">{{ selectedCardBank()!.shortCode }}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="change-bank-btn"
+                (click)="openCardBankDropdown()"
+                title="Change bank / issuer"
+              >
+                <span class="material-symbols-outlined">edit</span>
+                <span>Change</span>
+              </button>
+            </div>
+
+            <!-- State B: Searchable Input & Dropdown Menu -->
+            <div *ngIf="!selectedCardBank() || isCardBankDropdownOpen()" class="bank-search-wrap">
+              <div class="search-input-box">
+                <span class="material-symbols-outlined input-search-icon">search</span>
+                <input
+                  id="cardBankSearchInput"
+                  type="text"
+                  [ngModel]="cardBankSearchQuery()"
+                  (ngModelChange)="onCardBankSearchChange($event)"
+                  [ngModelOptions]="{standalone: true}"
+                  placeholder="Search 90+ Indian Banks & Issuers (e.g. HDFC, SBI Card, ICICI, Amex, Axis)..."
+                  class="form-input search-field font-sans"
+                  autocomplete="off"
+                  (focus)="openCardBankDropdown()"
+                />
+                <button
+                  *ngIf="cardBankSearchQuery()"
+                  type="button"
+                  class="clear-input-btn"
+                  (click)="clearCardBankSearch()"
+                  aria-label="Clear issuer search"
+                >
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              <!-- Dropdown List -->
+              <div *ngIf="isCardBankDropdownOpen()" class="bank-options-list glass-panel-elevated">
+                <div class="options-header">
+                  <span>Available Issuers & Banks ({{ filteredCardBanks().length }})</span>
+                  <button type="button" class="close-list-btn" (click)="closeCardBankDropdown()">
+                    <span class="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+
+                <div class="options-scroll">
+                  <div
+                    *ngFor="let bank of filteredCardBanks()"
+                    class="bank-option-row"
+                    (click)="selectCardBank(bank)"
+                  >
+                    <div class="option-icon-box">
+                      <span class="material-symbols-outlined">account_balance</span>
+                    </div>
+                    <div class="option-meta">
+                      <span class="option-name">{{ bank.name }}</span>
+                      <span class="option-sub" *ngIf="bank.category">{{ bank.category }}</span>
+                    </div>
+                    <span class="option-code" *ngIf="bank.shortCode">{{ bank.shortCode }}</span>
+                  </div>
+
+                  <!-- Empty state or custom bank entry -->
+                  <div *ngIf="filteredCardBanks().length === 0" class="no-banks-found">
+                    <p>No listed Indian banks or issuers matching "{{ cardBankSearchQuery() }}"</p>
+                  </div>
+
+                  <div
+                    *ngIf="cardBankSearchQuery().trim().length > 0"
+                    class="custom-bank-option"
+                    (click)="enableCardCustomBank(cardBankSearchQuery())"
+                  >
+                    <span class="material-symbols-outlined">add_circle</span>
+                    <span>Use "<strong>{{ cardBankSearchQuery() }}</strong>" as Custom Issuer</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="cardForm.get('bankName')?.invalid && cardForm.get('bankName')?.touched" class="field-error">
+              Please select or enter an issuing bank / issuer.
+            </div>
+          </div>
+
           <div class="form-field">
             <label class="field-label" for="cardNickname">Card Nickname *</label>
             <input
@@ -358,16 +477,43 @@ import {
           </div>
 
           <div class="form-field">
-            <label class="field-label" for="cardNumber">Card Number (13-19 digits) *</label>
-            <input
-              id="cardNumber"
-              type="text"
-              formControlName="cardNumber"
-              placeholder="e.g. 4111 2222 3333 4444"
-              class="form-input font-mono"
-              maxlength="23"
-            />
+            <div class="field-label-row">
+              <label class="field-label" for="cardNumber">Card Number (13-19 digits) *</label>
+              <!-- Detected Network Badge -->
+              <span *ngIf="detectedCardMeta()" class="detected-network-pill" [style.background]="detectedCardMeta()!.badgeBg">
+                {{ detectedCardMeta()!.name }}
+              </span>
+            </div>
+
+            <div class="card-number-input-wrap">
+              <input
+                id="cardNumber"
+                type="text"
+                formControlName="cardNumber"
+                (input)="onCardNumberInput($event)"
+                placeholder="e.g. 4111 2222 3333 4444"
+                class="form-input font-mono card-number-field"
+                maxlength="23"
+              />
+              <div class="card-brand-badge-box" [title]="detectedCardMeta()?.name || 'Card Network'">
+                <!-- When network is detected, show its SVG logo -->
+                <div *ngIf="detectedCardMeta()" class="network-svg-wrap" [innerHTML]="sanitizedCardLogo()"></div>
+                <!-- When no network or empty, show default card icon -->
+                <div *ngIf="!detectedCardMeta()" class="network-svg-wrap default-card-icon" [innerHTML]="sanitizedDefaultLogo()"></div>
+              </div>
+            </div>
+
+            <!-- Unrecognized Network Warning Message -->
+            <div *ngIf="isUnrecognizedCardNetwork()" class="network-warning-notice">
+              <span class="material-symbols-outlined warning-icon">warning</span>
+              <div class="warning-text">
+                <strong>Unrecognized card network.</strong>
+                <span>Supported networks: RuPay, Visa, Mastercard, American Express, Diners Club, Discover, JCB, Maestro, UnionPay.</span>
+              </div>
+            </div>
+
             <div *ngIf="cardForm.get('cardNumber')?.invalid && cardForm.get('cardNumber')?.touched" class="field-error">
+              <span *ngIf="cardForm.get('cardNumber')?.errors?.['unrecognizedCardNetwork']">Unrecognized card network. Please check the digits and try again.</span>
               <span *ngIf="cardForm.get('cardNumber')?.errors?.['invalidCardFormat']">Must be 13-19 numeric digits.</span>
               <span *ngIf="cardForm.get('cardNumber')?.errors?.['luhnChecksumFailed']">Invalid card number. Please check the digits and try again.</span>
               <span *ngIf="cardForm.get('cardNumber')?.errors?.['required']">Card number is required.</span>
@@ -404,17 +550,19 @@ import {
             </div>
 
             <div class="form-field">
-              <label class="field-label" for="cvv">CVV (3-4 digits) *</label>
+              <label class="field-label" for="cvv">
+                {{ detectedCardMeta()?.code?.name || 'CVV' }} ({{ detectedCardMeta()?.code?.size ? detectedCardMeta()!.code.size + ' digits' : '3-4 digits' }}) *
+              </label>
               <input
                 id="cvv"
                 type="password"
                 formControlName="cvv"
-                placeholder="123"
+                [placeholder]="detectedCardMeta()?.code?.size === 4 ? '1234' : '123'"
                 maxlength="4"
                 class="form-input font-mono text-center"
               />
               <div *ngIf="cardForm.get('cvv')?.invalid && cardForm.get('cvv')?.touched" class="field-error">
-                3 or 4 numeric digits required.
+                {{ detectedCardMeta()?.code?.size === 4 ? '4 numeric digits required.' : '3 or 4 numeric digits required.' }}
               </div>
             </div>
           </div>
@@ -445,6 +593,20 @@ import {
               placeholder="Billing address notes, customer service phone, etc."
               class="form-textarea font-sans"
             ></textarea>
+          </div>
+
+          <div class="form-field">
+            <label class="field-label" for="cardImageUrl">Custom Card Image / Artwork URL (Optional)</label>
+            <input
+              id="cardImageUrl"
+              type="text"
+              formControlName="cardImageUrl"
+              placeholder="e.g. Paste link to Card Insider or official card face photo"
+              class="form-input font-sans"
+            />
+            <span style="font-size: 0.72rem; color: rgba(255, 255, 255, 0.5); margin-top: 4px; display: block;">
+              Optional. Leave blank to automatically use the high-fidelity theme for your card.
+            </span>
           </div>
 
           <button
@@ -981,6 +1143,98 @@ import {
       color: var(--text-primary);
     }
 
+    .field-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
+
+    .detected-network-pill {
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: #ffffff;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      animation: fadeIn 0.2s ease-in;
+    }
+
+    .card-preview-form-box {
+      margin-bottom: 24px;
+    }
+
+    .card-number-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .card-number-field {
+      padding-right: 68px;
+      letter-spacing: 0.06em;
+    }
+
+    .card-brand-badge-box {
+      position: absolute;
+      right: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 52px;
+      height: 34px;
+      pointer-events: none;
+      transition: all 0.2s ease;
+    }
+
+    .network-svg-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .network-svg-wrap svg {
+      width: 48px;
+      height: 30px;
+      border-radius: 4px;
+    }
+
+    .default-card-icon {
+      opacity: 0.55;
+    }
+
+    .network-warning-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 12px;
+      margin-top: 4px;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      border-radius: var(--radius-sm);
+      color: #fca5a5;
+      font-size: 0.8rem;
+      line-height: 1.4;
+      animation: fadeIn 0.2s ease-in;
+    }
+
+    .network-warning-notice .warning-icon {
+      font-size: 18px;
+      color: #ef4444;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .network-warning-notice .warning-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
     .form-row-dual {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -1031,6 +1285,8 @@ export class ItemFormComponent implements OnInit {
   private readonly bankDirectory = inject(BankDirectoryService);
   private readonly clipboard = inject(ClipboardSafetyService);
   private readonly elementRef = inject(ElementRef);
+  private readonly cardDetector = inject(CardDetectorService);
+  private readonly sanitizer = inject(DomSanitizer);
 
   readonly selectedCategory = signal<VaultCategory>('BANKING');
   readonly isEditMode = signal<boolean>(false);
@@ -1038,12 +1294,23 @@ export class ItemFormComponent implements OnInit {
   readonly isSubmitting = signal<boolean>(false);
   readonly showPassword = signal<boolean>(false);
 
-  // Searchable Bank Dropdown Signals
+  // Searchable Bank Dropdown Signals (Banking Form)
   readonly bankSearchQuery = signal<string>('');
   readonly isBankDropdownOpen = signal<boolean>(false);
   readonly selectedBank = signal<IndianBank | null>(null);
   readonly isCustomBank = signal<boolean>(false);
   readonly filteredBanks = computed(() => this.bankDirectory.searchBanks(this.bankSearchQuery()));
+
+  // Searchable Bank Dropdown Signals (Credit / Debit Card Form)
+  readonly cardBankSearchQuery = signal<string>('');
+  readonly isCardBankDropdownOpen = signal<boolean>(false);
+  readonly selectedCardBank = signal<IndianBank | null>(null);
+  readonly isCardCustomBank = signal<boolean>(false);
+  readonly filteredCardBanks = computed(() => this.bankDirectory.searchBanks(this.cardBankSearchQuery()));
+
+  // Card Detection Signals
+  readonly detectedCardMeta = signal<CardNetworkMeta | null>(null);
+  readonly isUnrecognizedCardNetwork = signal<boolean>(false);
 
   bankingForm!: FormGroup;
   cardForm!: FormGroup;
@@ -1051,13 +1318,20 @@ export class ItemFormComponent implements OnInit {
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
-    if (this.isBankDropdownOpen() && !this.elementRef.nativeElement.querySelector('.bank-dropdown-container')?.contains(event.target)) {
+    if (this.isBankDropdownOpen() && !this.elementRef.nativeElement.querySelector('.banking-dropdown-container')?.contains(event.target)) {
       this.closeBankDropdown();
+    }
+    if (this.isCardBankDropdownOpen() && !this.elementRef.nativeElement.querySelector('.card-bank-dropdown-container')?.contains(event.target)) {
+      this.closeCardBankDropdown();
     }
   }
 
   ngOnInit(): void {
     this.initForms();
+
+    this.cardForm.get('cardNumber')?.valueChanges.subscribe(val => {
+      this.updateDetectedCard(val);
+    });
 
     this.route.queryParams.subscribe(params => {
       if (params['category'] && ['BANKING', 'CREDIT_CARD', 'DEBIT_CARD'].includes(params['category'])) {
@@ -1087,14 +1361,16 @@ export class ItemFormComponent implements OnInit {
 
     this.cardForm = this.fb.group(
       {
+        bankName: ['', [Validators.required]],
         cardNickname: ['', [Validators.required]],
         cardholderName: ['', [Validators.required]],
-        cardNumber: ['', [Validators.required, VaultValidators.luhnCardNumber()]],
+        cardNumber: ['', [Validators.required, VaultValidators.luhnCardNumber(), this.validateCardNetwork()]],
         expiryMonth: ['', [Validators.required]],
         expiryYear: ['', [Validators.required]],
         cvv: ['', [Validators.required, VaultValidators.cvv()]],
         pin: ['', [VaultValidators.pin()]],
-        notes: ['']
+        notes: [''],
+        cardImageUrl: ['']
       },
       { validators: VaultValidators.cardExpiry('expiryMonth', 'expiryYear') }
     );
@@ -1132,16 +1408,31 @@ export class ItemFormComponent implements OnInit {
         }
       } else if (decrypted.category === 'CREDIT_CARD' || decrypted.category === 'DEBIT_CARD') {
         const payload = decrypted.payload as PaymentCardPayload;
+        const formattedNumber = this.cardDetector.formatCardNumber(payload.cardNumber);
         this.cardForm.patchValue({
+          bankName: payload.bankName || '',
           cardNickname: payload.cardNickname,
           cardholderName: payload.cardholderName,
-          cardNumber: payload.cardNumber,
+          cardNumber: formattedNumber,
           expiryMonth: payload.expiryMonth,
           expiryYear: payload.expiryYear,
           cvv: payload.cvv,
           pin: payload.pin || '',
-          notes: payload.notes || ''
+          notes: payload.notes || '',
+          cardImageUrl: payload.cardImageUrl || ''
         });
+        this.updateDetectedCard(payload.cardNumber);
+
+        if (payload.bankName) {
+          const matched = this.bankDirectory.getBankByName(payload.bankName);
+          if (matched) {
+            this.selectedCardBank.set(matched);
+            this.cardBankSearchQuery.set(matched.name);
+          } else {
+            this.isCardCustomBank.set(true);
+            this.cardBankSearchQuery.set(payload.bankName);
+          }
+        }
       }
     } catch {
       this.router.navigate(['/items']);
@@ -1238,6 +1529,91 @@ export class ItemFormComponent implements OnInit {
     }
   }
 
+  // --- Card Bank Dropdown Search & Selection Methods ---
+  openCardBankDropdown(): void {
+    this.isCardBankDropdownOpen.set(true);
+  }
+
+  closeCardBankDropdown(): void {
+    this.isCardBankDropdownOpen.set(false);
+  }
+
+  onCardBankSearchChange(query: string): void {
+    this.cardBankSearchQuery.set(query);
+    this.isCardBankDropdownOpen.set(true);
+  }
+
+  clearCardBankSearch(): void {
+    this.cardBankSearchQuery.set('');
+    this.selectedCardBank.set(null);
+    this.cardForm.patchValue({ bankName: '' });
+  }
+
+  selectCardBank(bank: IndianBank): void {
+    this.selectedCardBank.set(bank);
+    this.isCardCustomBank.set(false);
+    this.cardBankSearchQuery.set(bank.name);
+    this.cardForm.patchValue({
+      bankName: bank.name
+    });
+    // Auto-suggest card nickname if currently empty
+    const currentNickname = this.cardForm.get('cardNickname')?.value;
+    if (!currentNickname || currentNickname.trim() === '') {
+      const typeLabel = this.selectedCategory() === 'DEBIT_CARD' ? 'Debit Card' : 'Credit Card';
+      const label = bank.shortCode ? `${bank.shortCode} ${typeLabel}` : `${bank.name} ${typeLabel}`;
+      this.cardForm.patchValue({ cardNickname: label });
+    }
+    this.isCardBankDropdownOpen.set(false);
+  }
+
+  enableCardCustomBank(customName: string): void {
+    const trimmed = customName.trim();
+    this.selectedCardBank.set(null);
+    this.isCardCustomBank.set(true);
+    this.cardForm.patchValue({
+      bankName: trimmed
+    });
+    this.cardBankSearchQuery.set(trimmed);
+    this.isCardBankDropdownOpen.set(false);
+  }
+
+  // --- Card Detection & Formatting Methods ---
+  private validateCardNetwork(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (!control.value) return null;
+      const clean = String(control.value).replace(/\D/g, '');
+      if (clean.length >= 4 && this.cardDetector.isUnrecognizedNetwork(clean)) {
+        return { unrecognizedCardNetwork: true };
+      }
+      return null;
+    };
+  }
+
+  updateDetectedCard(val: string | null | undefined): void {
+    const detected = this.cardDetector.detectCard(val);
+    this.detectedCardMeta.set(detected);
+    this.isUnrecognizedCardNetwork.set(this.cardDetector.isUnrecognizedNetwork(val));
+  }
+
+  onCardNumberInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const formatted = this.cardDetector.formatCardNumber(input.value);
+    if (formatted !== input.value) {
+      input.value = formatted;
+      this.cardForm.get('cardNumber')?.setValue(formatted, { emitModelToViewChange: false });
+    }
+  }
+
+  sanitizedCardLogo(): SafeHtml {
+    const meta = this.detectedCardMeta();
+    if (!meta) return '';
+    return this.sanitizer.bypassSecurityTrustHtml(meta.svgLogo);
+  }
+
+  sanitizedDefaultLogo(): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.cardDetector.getGenericCardSvg());
+  }
+
   async onSubmitCard(): Promise<void> {
     if (this.cardForm.invalid || this.isSubmitting()) return;
     this.isSubmitting.set(true);
@@ -1245,6 +1621,7 @@ export class ItemFormComponent implements OnInit {
     const val = this.cardForm.value;
     const cleanCardNumber = String(val.cardNumber).replace(/\s+/g, '');
     const payload: PaymentCardPayload = {
+      bankName: val.bankName?.trim() || undefined,
       cardNickname: val.cardNickname.trim(),
       cardholderName: val.cardholderName.trim().toUpperCase(),
       cardNumber: cleanCardNumber,
@@ -1252,7 +1629,8 @@ export class ItemFormComponent implements OnInit {
       expiryYear: String(val.expiryYear).length === 2 ? `20${val.expiryYear}` : String(val.expiryYear),
       cvv: String(val.cvv).trim(),
       pin: val.pin ? String(val.pin).trim() : undefined,
-      notes: val.notes?.trim() || undefined
+      notes: val.notes?.trim() || undefined,
+      cardImageUrl: val.cardImageUrl?.trim() || undefined
     };
 
     const title = payload.cardNickname;

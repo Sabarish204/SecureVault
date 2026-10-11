@@ -1,4 +1,16 @@
-import { Component, EventEmitter, Output, inject, signal } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  Output,
+  inject,
+  signal,
+  OnInit,
+  AfterViewInit,
+  OnDestroy,
+  ViewChild,
+  ElementRef,
+  HostListener
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FeedbackService } from '../../../core/services/feedback.service';
@@ -14,8 +26,21 @@ import {
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="feedback-modal-backdrop animate-fade-in" role="dialog" aria-modal="true">
-      <div class="feedback-modal-card glass-panel-elevated">
+    <div
+      #modalBackdrop
+      class="feedback-modal-backdrop animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="feedbackModalTitle"
+      (click)="onBackdropClick($event)"
+    >
+      <div
+        #modalCard
+        class="feedback-modal-card glass-panel-elevated"
+        tabindex="-1"
+        role="document"
+        (click)="$event.stopPropagation()"
+      >
         
         <!-- Modal Header -->
         <div class="modal-header">
@@ -23,7 +48,7 @@ import {
             <span class="material-symbols-outlined header-icon">rate_review</span>
           </div>
           <div class="title-meta">
-            <h2 class="modal-title">Feedback & Suggestions</h2>
+            <h2 id="feedbackModalTitle" class="modal-title">Feedback & Suggestions</h2>
             <p class="modal-subtitle">Help us improve SecureVault.</p>
           </div>
           <button
@@ -91,6 +116,7 @@ import {
               Title / Summary <span class="required">*</span>
             </label>
             <input
+              #titleInput
               id="feedbackTitle"
               type="text"
               class="form-input"
@@ -176,20 +202,25 @@ import {
       left: 0;
       right: 0;
       bottom: 0;
+      width: 100vw;
+      height: 100%;
+      height: 100dvh;
       background: rgba(4, 7, 13, 0.85);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
-      padding: 16px;
+      padding: max(16px, env(safe-area-inset-top, 16px)) 16px max(24px, env(safe-area-inset-bottom, 24px)) 16px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       z-index: 9999;
     }
 
     .feedback-modal-card {
       width: 100%;
       max-width: 520px;
-      max-height: 90vh;
+      max-height: calc(100dvh - 32px);
       overflow-y: auto;
       padding: 24px;
       display: flex;
@@ -197,6 +228,18 @@ import {
       gap: 16px;
       border: 1px solid rgba(56, 189, 248, 0.35);
       box-shadow: 0 0 35px rgba(56, 189, 248, 0.12), 0 20px 40px rgba(0, 0, 0, 0.7);
+      outline: none;
+      margin-top: 0;
+    }
+
+    @media (min-width: 641px) {
+      .feedback-modal-backdrop {
+        align-items: center;
+        padding: 24px 16px;
+      }
+      .feedback-modal-card {
+        max-height: 90vh;
+      }
     }
 
     .modal-header {
@@ -517,7 +560,11 @@ import {
     }
   `]
 })
-export class FeedbackModalComponent {
+export class FeedbackModalComponent implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('modalBackdrop') modalBackdrop?: ElementRef<HTMLDivElement>;
+  @ViewChild('modalCard') modalCard?: ElementRef<HTMLDivElement>;
+  @ViewChild('titleInput') titleInput?: ElementRef<HTMLInputElement>;
+
   readonly feedbackService = inject(FeedbackService);
   readonly network = inject(NetworkStatusService);
 
@@ -534,6 +581,46 @@ export class FeedbackModalComponent {
   readonly errorMessage = signal<string>('');
 
   readonly diagnosticInfo = this.feedbackService.getDeviceDiagnosticInfo();
+
+  @HostListener('document:keydown.escape')
+  onEscapePress(): void {
+    if (!this.isSubmitting()) {
+      this.close.emit();
+    }
+  }
+
+  onBackdropClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget && !this.isSubmitting()) {
+      this.close.emit();
+    }
+  }
+
+  ngOnInit(): void {
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = 'hidden';
+    }
+  }
+
+  ngAfterViewInit(): void {
+    // Focus the popup card and ensure it starts at the top position of the device viewport
+    requestAnimationFrame(() => {
+      if (this.modalCard?.nativeElement) {
+        this.modalCard.nativeElement.scrollTop = 0;
+        this.modalCard.nativeElement.focus({ preventScroll: true });
+      }
+      setTimeout(() => {
+        if (this.titleInput?.nativeElement) {
+          this.titleInput.nativeElement.focus({ preventScroll: true });
+        }
+      }, 50);
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = '';
+    }
+  }
 
   async retryConnection(): Promise<void> {
     this.isCheckingNetwork.set(true);

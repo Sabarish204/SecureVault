@@ -79,13 +79,30 @@ jobs:
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: "SecureVault v1.0.${{ github.run_number }} (Android APK)"
-          generate_release_notes: true
           body: |
             ## 🛡️ SecureVault v1.0.${{ github.run_number }} — Encrypted Credential Vault
             
             ### 📱 Android Installation:
             Download **[SecureVault.apk](https://github.com/Sabarish204/SecureVault/releases/download/v1.0.${{ github.run_number }}/SecureVault.apk)**
             
+            ### 🚀 What's New in this Build:
+            * **Progressive PIN Lockout & Anti-Brute-Force**:
+              - Added rate limiting with progressive security cooldowns (30s after 5 failed attempts, 60s after 6–9 attempts, 5m after 10+ attempts).
+              - Persistent cooldown timer across app refreshes/restarts with active countdown banner.
+              - PIN inputs and biometric triggers automatically lock during cooldown periods.
+            * **Universal Card Detection & Fixes**:
+              - Fixed Indian RuPay 6529 range (`652150–653149`), preventing incorrect Discover classification.
+              - Corrected JCB BIN range (`3528–3589`) and refreshed brand logo.
+            * **Realistic Card Artwork & Themes**:
+              - Tailored luxury presets for 30+ programs (HDFC Pixel, Millennia, Axis IndianOil, Kotak League, SBI BPCL Octane, ICICI Amex, etc.).
+              - Procedural luxury theme generator for any unlisted cards worldwide.
+              - Live interactive card preview inside the credential form as you type.
+              - Added custom background image URL support (`cardImageUrl`).
+            * **Responsive Card Mockup**:
+              - Auto-stretching dynamic height and clamp typography to eliminate cardholder name or bottom row clipping on mobile screens.
+            * **Backup & Verification Enhancements**:
+              - Detailed backup export inspection modal showing UUID, byte size, and AES-256-GCM verification.
+
             *Build: `#${{ github.run_number }}` • Commit: `${{ github.sha }}`*
           files: |
             ./SecureVault-v1.0.${{ github.run_number }}.apk

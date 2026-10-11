@@ -4,6 +4,7 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { UnlockComponent } from './unlock.component';
 import { VaultStateService } from '../../core/state/vault-state.service';
 import { BiometricService } from '../../core/services/biometric.service';
+import { PinLockoutService } from '../../core/services/pin-lockout.service';
 import { signal } from '@angular/core';
 
 describe('UnlockComponent', () => {
@@ -11,6 +12,7 @@ describe('UnlockComponent', () => {
   let fixture: ComponentFixture<UnlockComponent>;
   let vaultStateMock: any;
   let biometricMock: any;
+  let pinLockoutMock: any;
 
   beforeEach(async () => {
     vaultStateMock = {
@@ -29,12 +31,22 @@ describe('UnlockComponent', () => {
       authenticateAndGetPin: vi.fn().mockResolvedValue(null)
     };
 
+    pinLockoutMock = {
+      isLockedOut: signal(false),
+      remainingCooldownSeconds: signal(0),
+      formattedRemainingTime: signal('0s'),
+      failedAttempts: signal(0),
+      recordFailedAttempt: vi.fn().mockReturnValue({ isLockedOut: false, cooldownSeconds: 0, failedAttempts: 1, attemptsUntilNextTier: 4 }),
+      recordSuccessfulAttempt: vi.fn()
+    };
+
     await TestBed.configureTestingModule({
       imports: [UnlockComponent],
       providers: [
         provideAnimationsAsync(),
         { provide: VaultStateService, useValue: vaultStateMock },
-        { provide: BiometricService, useValue: biometricMock }
+        { provide: BiometricService, useValue: biometricMock },
+        { provide: PinLockoutService, useValue: pinLockoutMock }
       ]
     }).compileComponents();
 
@@ -169,16 +181,36 @@ describe('UnlockComponent', () => {
       expect(unlockSpy).toHaveBeenCalled();
     });
 
-    it('should shake and clear PIN when unlock fails', async () => {
+    it('should shake, clear PIN, and record failed attempt when unlock fails', async () => {
       vaultStateMock.unlockVault.mockResolvedValueOnce(false);
       component.pinDigits = ['1', '2', '3', '4'];
       component.unlockForm.get('masterPassword')?.setValue('1234');
 
       await component.onUnlockSubmit();
 
+      expect(pinLockoutMock.recordFailedAttempt).toHaveBeenCalled();
       expect(component.errorMessage()).toContain('Incorrect master PIN');
       expect(component.isShaking()).toBe(true);
       expect(component.pinDigits).toEqual(['', '', '', '']);
+    });
+
+    it('should disable submit and display lockout message when locked out', async () => {
+      pinLockoutMock.isLockedOut.set(true);
+      pinLockoutMock.formattedRemainingTime.set('30s');
+      fixture.detectChanges();
+
+      const submitBtn = fixture.nativeElement.querySelector('button[type="submit"]');
+      expect(submitBtn.disabled).toBe(true);
+
+      const lockoutBanner = fixture.nativeElement.querySelector('.lockout-banner');
+      expect(lockoutBanner).toBeTruthy();
+      expect(lockoutBanner.textContent).toContain('Security Cooldown Active');
+
+      // Attempting to submit while locked out should not call vaultState.unlockVault
+      component.pinDigits = ['1', '2', '3', '4'];
+      component.unlockForm.get('masterPassword')?.setValue('1234');
+      await component.onUnlockSubmit();
+      expect(vaultStateMock.unlockVault).not.toHaveBeenCalled();
     });
 
     it('should toggle password visibility between masked and plain text', () => {

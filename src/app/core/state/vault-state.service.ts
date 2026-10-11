@@ -4,6 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { CryptoService } from '../crypto/crypto.service';
 import { VaultStorageService } from '../persistence/vault-storage.service';
 import { BiometricService } from '../services/biometric.service';
+import { PinLockoutService } from '../services/pin-lockout.service';
 import {
   BaseVaultItem,
   DecryptedVaultItem,
@@ -22,6 +23,7 @@ export class VaultStateService {
   private readonly crypto = inject(CryptoService);
   private readonly storage = inject(VaultStorageService);
   private readonly biometric = inject(BiometricService);
+  private readonly pinLockout = inject(PinLockoutService);
 
   // Volatile in-memory key reference (never persisted)
   private masterKey: CryptoKey | null = null;
@@ -119,6 +121,10 @@ export class VaultStateService {
    * Unlocks existing vault with master password
    */
   async unlockVault(masterPassword: string): Promise<boolean> {
+    if (this.pinLockout.isLockedOut()) {
+      return false;
+    }
+
     if (!this.vaultMetadata) {
       this.vaultMetadata = await this.storage.getMetadata();
     }
@@ -131,6 +137,7 @@ export class VaultStateService {
     try {
       const derivedKey = await this.crypto.verifyMasterPassword(masterPassword, this.vaultMetadata);
       this.masterKey = derivedKey;
+      this.pinLockout.recordSuccessfulAttempt();
       this.status.set('UNLOCKED');
 
       // Load item metadata list
@@ -138,10 +145,6 @@ export class VaultStateService {
       await this.router.navigate(['/dashboard']);
       return true;
     } catch {
-      this.snackBar.open('Incorrect master password.', 'Close', {
-        duration: 3500,
-        panelClass: 'snack-error'
-      });
       return false;
     } finally {
       this.isLoading.set(false);

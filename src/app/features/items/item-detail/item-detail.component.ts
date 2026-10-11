@@ -130,8 +130,21 @@ import {
             [expiryYear]="getCardPayload().expiryYear"
             [cvv]="getCardPayload().cvv"
             [nickname]="getCardPayload().cardNickname"
+            [bankName]="getCardPayload().bankName"
             [category]="item()!.category === 'DEBIT_CARD' ? 'DEBIT_CARD' : 'CREDIT_CARD'"
+            [customBgImage]="getCardPayload().cardImageUrl"
           ></app-card-preview>
+
+          <!-- Issuing Bank -->
+          <div class="info-group" *ngIf="getCardPayload().bankName">
+            <label class="info-label">Issuing Bank / Issuer</label>
+            <div class="info-value-box">
+              <span class="font-bold">{{ getCardPayload().bankName }}</span>
+              <button type="button" class="icon-action-btn" (click)="copyText(getCardPayload().bankName!, 'Issuing Bank')">
+                <span class="material-symbols-outlined">content_copy</span>
+              </button>
+            </div>
+          </div>
 
           <!-- Cardholder Name -->
           <div class="info-group">

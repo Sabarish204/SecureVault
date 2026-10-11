@@ -50,4 +50,38 @@ describe('FeedbackModalComponent', () => {
 
     expect(component.errorMessage()).toContain('connect to the internet');
   });
+
+  it('should lock document body scroll on init and release on destroy', () => {
+    component.ngOnInit();
+    expect(document.body.style.overflow).toBe('hidden');
+
+    component.ngOnDestroy();
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('should emit close on Escape key press', () => {
+    let closed = false;
+    component.close.subscribe(() => {
+      closed = true;
+    });
+
+    component.onEscapePress();
+    expect(closed).toBe(true);
+  });
+
+  it('should emit close when clicking directly on backdrop', () => {
+    let closed = false;
+    component.close.subscribe(() => {
+      closed = true;
+    });
+
+    const backdropEl = document.createElement('div');
+    const mockEvent = {
+      target: backdropEl,
+      currentTarget: backdropEl
+    } as unknown as MouseEvent;
+
+    component.onBackdropClick(mockEvent);
+    expect(closed).toBe(true);
+  });
 });

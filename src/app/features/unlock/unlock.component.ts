@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { VaultStateService } from '../../core/state/vault-state.service';
 import { BiometricService } from '../../core/services/biometric.service';
+import { PinLockoutService } from '../../core/services/pin-lockout.service';
 import { VaultValidators } from '../../shared/validators/vault.validators';
 
 @Component({
@@ -117,7 +118,7 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
             type="button"
             class="biometric-trigger-btn"
             (click)="triggerBiometricUnlock()"
-            [disabled]="isSubmitting() || biometric.isAuthenticating()"
+            [disabled]="pinLockout.isLockedOut() || isSubmitting() || biometric.isAuthenticating()"
             aria-label="Unlock with Fingerprint"
           >
             <div class="fingerprint-radar">
@@ -154,6 +155,19 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
               </button>
             </div>
 
+            <!-- Progressive Cooldown / Lockout Banner -->
+            <div *ngIf="pinLockout.isLockedOut()" class="lockout-banner animate-fade-in" role="alert">
+              <div class="lockout-badge">
+                <span class="material-symbols-outlined lockout-icon">lock_clock</span>
+              </div>
+              <div class="lockout-info">
+                <span class="lockout-title">Security Cooldown Active</span>
+                <span class="lockout-timer">
+                  Too many failed attempts. Try again in <strong>{{ pinLockout.formattedRemainingTime() }}</strong>
+                </span>
+              </div>
+            </div>
+
             <!-- 4 Distinct Digit Textboxes with Auto-Focus and Numeric-Only Keyboard -->
             <div
               class="pin-boxes-container"
@@ -174,6 +188,7 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
                 class="pin-box"
                 [class.has-value]="pinDigits[0] !== ''"
                 [value]="pinDigits[0]"
+                [disabled]="pinLockout.isLockedOut() || isSubmitting()"
                 (beforeinput)="onDigitBeforeInput($event)"
                 (input)="onDigitInput($event, 0)"
                 (keydown)="onDigitKeyDown($event, 0)"
@@ -194,6 +209,7 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
                 class="pin-box"
                 [class.has-value]="pinDigits[1] !== ''"
                 [value]="pinDigits[1]"
+                [disabled]="pinLockout.isLockedOut() || isSubmitting()"
                 (beforeinput)="onDigitBeforeInput($event)"
                 (input)="onDigitInput($event, 1)"
                 (keydown)="onDigitKeyDown($event, 1)"
@@ -214,6 +230,7 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
                 class="pin-box"
                 [class.has-value]="pinDigits[2] !== ''"
                 [value]="pinDigits[2]"
+                [disabled]="pinLockout.isLockedOut() || isSubmitting()"
                 (beforeinput)="onDigitBeforeInput($event)"
                 (input)="onDigitInput($event, 2)"
                 (keydown)="onDigitKeyDown($event, 2)"
@@ -234,6 +251,7 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
                 class="pin-box"
                 [class.has-value]="pinDigits[3] !== ''"
                 [value]="pinDigits[3]"
+                [disabled]="pinLockout.isLockedOut() || isSubmitting()"
                 (beforeinput)="onDigitBeforeInput($event)"
                 (input)="onDigitInput($event, 3)"
                 (keydown)="onDigitKeyDown($event, 3)"
@@ -242,7 +260,7 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
               />
             </div>
 
-            <div *ngIf="errorMessage()" class="form-error text-center">
+            <div *ngIf="errorMessage() && !pinLockout.isLockedOut()" class="form-error text-center">
               {{ errorMessage() }}
             </div>
           </div>
@@ -250,12 +268,12 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
           <button
             type="submit"
             class="btn-primary w-full"
-            [disabled]="unlockForm.invalid || isSubmitting()"
+            [disabled]="pinLockout.isLockedOut() || unlockForm.invalid || isSubmitting()"
           >
             <mat-spinner *ngIf="isSubmitting()" diameter="20" color="accent"></mat-spinner>
             <span *ngIf="!isSubmitting()" style="display: inline-flex; align-items: center; gap: 8px;">
-              <span class="material-symbols-outlined">lock_open</span>
-              Unlock Vault
+              <span class="material-symbols-outlined">{{ pinLockout.isLockedOut() ? 'lock_clock' : 'lock_open' }}</span>
+              {{ pinLockout.isLockedOut() ? ('Locked (' + pinLockout.formattedRemainingTime() + ')') : 'Unlock Vault' }}
             </span>
           </button>
 
@@ -431,6 +449,74 @@ import { VaultValidators } from '../../shared/validators/vault.validators';
     .pin-box[type="password"] {
       font-size: 2rem;
       letter-spacing: 0;
+    }
+
+    .pin-box:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      background: rgba(15, 23, 42, 0.4);
+      border-color: rgba(255, 255, 255, 0.05);
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    .lockout-banner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      width: 100%;
+      max-width: 300px;
+      box-sizing: border-box;
+      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.15);
+      margin-bottom: 4px;
+    }
+
+    .lockout-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: rgba(239, 68, 68, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .lockout-icon {
+      font-size: 22px;
+      color: #ef4444;
+      animation: pulse 1.5s infinite;
+    }
+
+    .lockout-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      text-align: left;
+    }
+
+    .lockout-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #fca5a5;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .lockout-timer {
+      font-size: 0.76rem;
+      color: #f8fafc;
+      line-height: 1.35;
+    }
+
+    .lockout-timer strong {
+      color: #ef4444;
+      font-family: monospace;
+      font-size: 0.88rem;
     }
 
     @keyframes pin-shake {
@@ -700,6 +786,7 @@ export class UnlockComponent implements OnInit, AfterViewInit {
   private readonly fb = inject(FormBuilder);
   readonly vaultState = inject(VaultStateService);
   readonly biometric = inject(BiometricService);
+  readonly pinLockout = inject(PinLockoutService);
 
   readonly showNewPassword = signal<boolean>(false);
   readonly showConfirmPassword = signal<boolean>(false);
@@ -730,8 +817,8 @@ export class UnlockComponent implements OnInit, AfterViewInit {
       masterPassword: ['', [Validators.required, VaultValidators.masterPassword()]]
     });
 
-    // Auto-prompt fingerprint unlock on launch if enabled
-    if (!this.isSetupMode() && this.biometric.isEnabled()) {
+    // Auto-prompt fingerprint unlock on launch if enabled and not locked out
+    if (!this.isSetupMode() && this.biometric.isEnabled() && !this.pinLockout.isLockedOut()) {
       setTimeout(() => {
         this.triggerBiometricUnlock();
       }, 350);
@@ -739,7 +826,7 @@ export class UnlockComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    if (!this.isSetupMode() && !this.biometric.isEnabled()) {
+    if (!this.isSetupMode() && !this.biometric.isEnabled() && !this.pinLockout.isLockedOut()) {
       setTimeout(() => {
         this.focusBox(0);
       }, 100);
@@ -747,7 +834,7 @@ export class UnlockComponent implements OnInit, AfterViewInit {
   }
 
   async triggerBiometricUnlock(): Promise<void> {
-    if (this.isSubmitting() || this.biometric.isAuthenticating()) return;
+    if (this.pinLockout.isLockedOut() || this.isSubmitting() || this.biometric.isAuthenticating()) return;
     this.errorMessage.set('');
 
     const pin = await this.biometric.authenticateAndGetPin();
@@ -756,7 +843,12 @@ export class UnlockComponent implements OnInit, AfterViewInit {
       try {
         const ok = await this.vaultState.unlockVault(pin);
         if (!ok) {
-          this.errorMessage.set('Fingerprint credentials did not match vault key. Please enter your PIN.');
+          const status = this.pinLockout.recordFailedAttempt();
+          if (status.isLockedOut) {
+            this.errorMessage.set(`Too many failed attempts. Security cooldown active for ${this.pinLockout.formattedRemainingTime()}.`);
+          } else {
+            this.errorMessage.set('Fingerprint credentials did not match vault key. Please enter your PIN.');
+          }
           this.focusBox(0);
         }
       } finally {
@@ -975,7 +1067,7 @@ export class UnlockComponent implements OnInit, AfterViewInit {
   }
 
   async onUnlockSubmit(): Promise<void> {
-    if (this.unlockForm.invalid || this.isSubmitting()) return;
+    if (this.pinLockout.isLockedOut() || this.unlockForm.invalid || this.isSubmitting()) return;
     this.isSubmitting.set(true);
     this.errorMessage.set('');
 
@@ -983,7 +1075,13 @@ export class UnlockComponent implements OnInit, AfterViewInit {
     try {
       const success = await this.vaultState.unlockVault(password);
       if (!success) {
-        this.errorMessage.set('Incorrect master PIN. Please try again.');
+        const status = this.pinLockout.recordFailedAttempt();
+        if (status.isLockedOut) {
+          this.errorMessage.set(`Too many failed attempts. Security cooldown active for ${this.pinLockout.formattedRemainingTime()}.`);
+        } else {
+          const remaining = status.attemptsUntilNextTier;
+          this.errorMessage.set(`Incorrect master PIN. (${remaining} attempt${remaining > 1 ? 's' : ''} remaining before temporary lockout)`);
+        }
         this.triggerShake();
         this.clearPin();
       }

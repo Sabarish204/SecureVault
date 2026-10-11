@@ -511,83 +511,6 @@ import { NetworkStatusService } from '../../core/services/network-status.service
         </div>
       </div>
 
-      <!-- Restore Confirmation Modal Dialog -->
-      <app-restore-confirm-dialog
-        *ngIf="pendingInspection()"
-        [inspection]="pendingInspection()!"
-        [isRestoring]="isRestoringBackup()"
-        [errorMessage]="restoreErrorMessage()"
-        (restore)="onConfirmRestore($event)"
-        (cancel)="onCancelRestore()"
-      ></app-restore-confirm-dialog>
-
-      <!-- Export Inspection Modal Dialog -->
-      <div *ngIf="showExportInspectionModal() && lastExportResult()" class="restore-modal-backdrop animate-fade-in" role="dialog" aria-modal="true">
-        <div class="restore-modal-card glass-panel-elevated">
-          
-          <div class="modal-header">
-            <div class="icon-badge" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4);">
-              <span class="material-symbols-outlined" style="color: var(--success); font-size: 28px;">verified_user</span>
-            </div>
-            <div class="title-meta">
-              <h2 class="modal-title">Backup Verification</h2>
-              <p class="modal-subtitle">Cryptographic envelope generated & validated.</p>
-            </div>
-          </div>
-
-          <div class="backup-meta-box">
-            <div class="meta-row">
-              <span class="meta-label">File Name:</span>
-              <span class="meta-val font-mono" style="word-break: break-all; font-size: 0.76rem;">{{ lastExportResult()!.filename }}</span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-label">Location:</span>
-              <span class="meta-val font-mono" style="word-break: break-all; color: var(--primary); font-size: 0.76rem;">{{ lastExportResult()!.displayPath }}</span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-label">Created At:</span>
-              <span class="meta-val">{{ lastExportResult()!.createdAt | date:'medium' }}</span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-label">Total Records:</span>
-              <span class="meta-val font-mono highlight">{{ lastExportResult()!.recordCount }} item(s)</span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-label">File Size:</span>
-              <span class="meta-val font-mono">{{ formatBytes(lastExportResult()!.fileSizeBytes) }}</span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-label">Encryption:</span>
-              <span class="meta-val font-mono">AES-256-GCM (PBKDF2 600,000 rds)</span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-label">Backup UUID:</span>
-              <span class="meta-val font-mono" style="font-size: 0.72rem; color: var(--text-muted);">{{ lastExportResult()!.backupId }}</span>
-            </div>
-          </div>
-
-          <div class="modal-actions">
-            <button
-              *ngIf="lastExportResult()!.isNative"
-              type="button"
-              class="btn-primary flex-1"
-              (click)="onShareExportedFile()"
-            >
-              <span class="material-symbols-outlined">share</span>
-              <span>View / Share File</span>
-            </button>
-            <button
-              type="button"
-              class="btn-secondary"
-              (click)="closeExportInspection()"
-            >
-              <span>Close</span>
-            </button>
-          </div>
-
-        </div>
-      </div>
-
       <!-- Feedback & Suggestions -->
       <div class="settings-card glass-panel">
         <div class="card-title-row">
@@ -627,13 +550,6 @@ import { NetworkStatusService } from '../../core/services/network-status.service
         </div>
       </div>
 
-      <!-- Feedback Modal Dialog -->
-      <app-feedback-modal
-        *ngIf="showFeedbackModal()"
-        (close)="showFeedbackModal.set(false)"
-        (submitted)="onFeedbackSubmitted($event)"
-      ></app-feedback-modal>
-
       <!-- Danger Zone: Reset Vault -->
       <div class="settings-card glass-panel danger-zone">
         <div class="card-title-row">
@@ -648,6 +564,90 @@ import { NetworkStatusService } from '../../core/services/network-status.service
         </button>
       </div>
     </div>
+
+    <!-- Restore Confirmation Modal Dialog -->
+    <app-restore-confirm-dialog
+      *ngIf="pendingInspection()"
+      [inspection]="pendingInspection()!"
+      [isRestoring]="isRestoringBackup()"
+      [errorMessage]="restoreErrorMessage()"
+      (restore)="onConfirmRestore($event)"
+      (cancel)="onCancelRestore()"
+    ></app-restore-confirm-dialog>
+
+    <!-- Export Inspection Modal Dialog -->
+    <div *ngIf="showExportInspectionModal() && lastExportResult()" class="restore-modal-backdrop animate-fade-in" role="dialog" aria-modal="true">
+      <div class="restore-modal-card glass-panel-elevated">
+        
+        <div class="modal-header">
+          <div class="icon-badge" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4);">
+            <span class="material-symbols-outlined" style="color: var(--success); font-size: 28px;">verified_user</span>
+          </div>
+          <div class="title-meta">
+            <h2 class="modal-title">Backup Verification</h2>
+            <p class="modal-subtitle">Cryptographic envelope generated & validated.</p>
+          </div>
+        </div>
+
+        <div class="backup-meta-box">
+          <div class="meta-row">
+            <span class="meta-label">File Name:</span>
+            <span class="meta-val font-mono" style="word-break: break-all; font-size: 0.76rem;">{{ lastExportResult()!.filename }}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Location:</span>
+            <span class="meta-val font-mono" style="word-break: break-all; color: var(--primary); font-size: 0.76rem;">{{ lastExportResult()!.displayPath }}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Created At:</span>
+            <span class="meta-val">{{ lastExportResult()!.createdAt | date:'medium' }}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Total Records:</span>
+            <span class="meta-val font-mono highlight">{{ lastExportResult()!.recordCount }} item(s)</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">File Size:</span>
+            <span class="meta-val font-mono">{{ formatBytes(lastExportResult()!.fileSizeBytes) }}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Encryption:</span>
+            <span class="meta-val font-mono">AES-256-GCM (PBKDF2 600,000 rds)</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Backup UUID:</span>
+            <span class="meta-val font-mono" style="font-size: 0.72rem; color: var(--text-muted);">{{ lastExportResult()!.backupId }}</span>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button
+            *ngIf="lastExportResult()!.isNative"
+            type="button"
+            class="btn-primary flex-1"
+            (click)="onShareExportedFile()"
+          >
+            <span class="material-symbols-outlined">share</span>
+            <span>View / Share File</span>
+          </button>
+          <button
+            type="button"
+            class="btn-secondary"
+            (click)="closeExportInspection()"
+          >
+            <span>Close</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Feedback Modal Dialog -->
+    <app-feedback-modal
+      *ngIf="showFeedbackModal()"
+      (close)="showFeedbackModal.set(false)"
+      (submitted)="onFeedbackSubmitted($event)"
+    ></app-feedback-modal>
   `,
   styles: [`
     .settings-wrapper {
@@ -1275,6 +1275,93 @@ import { NetworkStatusService } from '../../core/services/network-status.service
     .network-status-desc {
       font-size: 0.76rem;
       color: var(--text-secondary);
+    }
+
+    .restore-modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100vw;
+      height: 100%;
+      height: 100dvh;
+      background: rgba(4, 7, 13, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      overflow-y: auto;
+      z-index: 9999;
+    }
+
+    .restore-modal-card {
+      width: 100%;
+      max-width: 480px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      box-shadow: 0 0 35px rgba(56, 189, 248, 0.15), 0 20px 40px rgba(0, 0, 0, 0.7);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .modal-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .modal-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    .backup-meta-box {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.82rem;
+    }
+
+    .meta-label {
+      color: var(--text-muted);
+    }
+
+    .meta-val {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .meta-val.highlight {
+      color: var(--primary);
+    }
+
+    .modal-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 6px;
     }
   `]
 })

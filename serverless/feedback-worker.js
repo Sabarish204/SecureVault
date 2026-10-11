@@ -93,6 +93,10 @@ export default {
               const rawUrl = uploadJson.content?.download_url ||
                 `https://raw.githubusercontent.com/${repo}/main/${filePath}`;
               uploadedImages.push({ name: att.name || `Screenshot ${i + 1}`, url: rawUrl });
+            } else {
+              const errStatus = uploadRes.status;
+              const errText = await uploadRes.text();
+              console.warn(`Attachment upload failed (status ${errStatus}):`, errText);
             }
           } catch (uploadErr) {
             console.warn('Failed to upload attachment:', uploadErr);
@@ -100,9 +104,15 @@ export default {
         }
 
         if (uploadedImages.length > 0) {
-          finalBody += `\n\n---\n### 📸 Attached Screenshots (${uploadedImages.length})\n`;
-          for (const img of uploadedImages) {
-            finalBody += `<a href="${img.url}" target="_blank"><img src="${img.url}" alt="${img.name}" width="380" style="max-width:100%; border-radius:8px; margin:4px 0;" /></a>\n\n`;
+          const imageSection = `### 📸 Attached Screenshots (${uploadedImages.length})\n` +
+            uploadedImages.map(img =>
+              `<a href="${img.url}" target="_blank"><img src="${img.url}" alt="${img.name}" width="380" style="max-width:100%; border-radius:8px; margin:6px 0;" /></a>`
+            ).join('\n\n') + '\n\n';
+
+          if (finalBody.includes('### 📸 Attachments')) {
+            finalBody = finalBody.replace(/### 📸 Attachments[\s\S]*?(?=\n>|\n---|$)/, imageSection);
+          } else {
+            finalBody += `\n\n---\n${imageSection}`;
           }
         }
       }

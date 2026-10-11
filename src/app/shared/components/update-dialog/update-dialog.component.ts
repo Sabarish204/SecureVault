@@ -80,7 +80,9 @@ import { AppUpdateService } from '../../../core/update/app-update.service';
         <!-- Modal Actions -->
         <div class="modal-actions">
           <ng-container *ngIf="!updateService.isDownloading()">
+            <!-- Standard Update Now when no error -->
             <button
+              *ngIf="!updateService.errorMessage()"
               type="button"
               class="btn-primary flex-1"
               (click)="updateService.downloadAndInstall()"
@@ -88,6 +90,28 @@ import { AppUpdateService } from '../../../core/update/app-update.service';
               <span class="material-symbols-outlined">download</span>
               <span>Update Now</span>
             </button>
+
+            <!-- 1-Tap Browser Download Fallback when fetch/network error occurs -->
+            <button
+              *ngIf="updateService.errorMessage()"
+              type="button"
+              class="btn-primary flex-1"
+              (click)="updateService.openDownloadInBrowser()"
+            >
+              <span class="material-symbols-outlined">open_in_browser</span>
+              <span>Download in Browser</span>
+            </button>
+
+            <button
+              *ngIf="updateService.errorMessage()"
+              type="button"
+              class="btn-secondary"
+              (click)="updateService.downloadAndInstall()"
+            >
+              <span class="material-symbols-outlined">refresh</span>
+              <span>Retry</span>
+            </button>
+
             <button
               type="button"
               class="btn-secondary"

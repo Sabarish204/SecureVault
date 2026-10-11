@@ -261,10 +261,27 @@ export class AppUpdateService {
       if (err.name === 'AbortError') {
         this.downloadStatusText.set('Download cancelled.');
       } else {
-        this.errorMessage.set(err.message || 'Failed to download or install update.');
+        const msg = (err.message || '').toLowerCase();
+        if (msg.includes('failed to fetch') || msg.includes('network') || msg.includes('fetch')) {
+          this.errorMessage.set('Download connection interrupted or blocked by server. You can download the update directly via your browser.');
+        } else {
+          this.errorMessage.set(err.message || 'Failed to download or install update.');
+        }
       }
     } finally {
       this.isDownloading.set(false);
+    }
+  }
+
+  /**
+   * Opens the direct APK download URL in the device's web browser.
+   * Bypasses in-app WebView restrictions and streams directly via the system browser.
+   */
+  openDownloadInBrowser(): void {
+    const release = this.currentRelease();
+    if (release?.apkDownloadUrl) {
+      window.open(release.apkDownloadUrl, '_system');
+      this.dismissModal();
     }
   }
 

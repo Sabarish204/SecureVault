@@ -36,7 +36,7 @@ export default {
 
     try {
       const data = await request.json();
-      const { title, body, labels } = data;
+      const { title, body, labels, attachments } = data;
 
       if (!title || !body) {
         return new Response(JSON.stringify({ error: 'Title and body are required' }), {
@@ -53,6 +53,60 @@ export default {
       }
 
       const repo = 'Sabarish204/SecureVault';
+      let finalBody = body;
+      const uploadedImages = [];
+
+      // Process up to 3 attachments and upload to repository contents
+      if (Array.isArray(attachments) && attachments.length > 0) {
+        for (let i = 0; i < Math.min(attachments.length, 3); i++) {
+          const att = attachments[i];
+          if (!att || !att.dataUrl) continue;
+
+          try {
+            const rawBase64 = att.dataUrl.includes(',')
+              ? att.dataUrl.split(',')[1]
+              : att.dataUrl;
+
+            const ext = (att.type && att.type.includes('png')) ? 'png' : 'jpg';
+            const safeName = (att.name || `screenshot_${i + 1}`)
+              .replace(/\.[^/.]+$/, '')
+              .replace(/[^a-zA-Z0-9_-]/g, '_');
+            const filePath = `.github/feedback-assets/${Date.now()}_${i + 1}_${safeName}.${ext}`;
+
+            const uploadRes = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`, {
+              method: 'PUT',
+              headers: {
+                'Accept': 'application/vnd.github+json',
+                'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
+                'User-Agent': 'SecureVault-Feedback-Worker/1.0',
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                message: `Upload feedback attachment: ${safeName}`,
+                content: rawBase64,
+                branch: 'main',
+              }),
+            });
+
+            if (uploadRes.ok) {
+              const uploadJson = await uploadRes.json();
+              const rawUrl = uploadJson.content?.download_url ||
+                `https://raw.githubusercontent.com/${repo}/main/${filePath}`;
+              uploadedImages.push({ name: att.name || `Screenshot ${i + 1}`, url: rawUrl });
+            }
+          } catch (uploadErr) {
+            console.warn('Failed to upload attachment:', uploadErr);
+          }
+        }
+
+        if (uploadedImages.length > 0) {
+          finalBody += `\n\n---\n### 📸 Attached Screenshots (${uploadedImages.length})\n`;
+          for (const img of uploadedImages) {
+            finalBody += `<a href="${img.url}" target="_blank"><img src="${img.url}" alt="${img.name}" width="380" style="max-width:100%; border-radius:8px; margin:4px 0;" /></a>\n\n`;
+          }
+        }
+      }
+
       const ghResponse = await fetch(`https://api.github.com/repos/${repo}/issues`, {
         method: 'POST',
         headers: {
@@ -63,7 +117,7 @@ export default {
         },
         body: JSON.stringify({
           title,
-          body,
+          body: finalBody,
           labels: Array.isArray(labels) ? labels : ['user-feedback'],
         }),
       });

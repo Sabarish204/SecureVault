@@ -16,6 +16,7 @@ import { FormsModule } from '@angular/forms';
 import { FeedbackService } from '../../../core/services/feedback.service';
 import { NetworkStatusService } from '../../../core/services/network-status.service';
 import {
+  FeedbackAttachment,
   FeedbackCategory,
   FeedbackDeviceInfo,
   FeedbackPayload,
@@ -147,6 +148,57 @@ import {
               maxlength="1000"
               required
             ></textarea>
+          </div>
+
+          <!-- Attach Screenshots Section (Max 3) -->
+          <div class="form-group">
+            <div class="label-row">
+              <label class="form-label">
+                Attach Pictures / Screenshots <span class="optional-label">(Max 3)</span>
+              </label>
+              <span class="char-count">{{ attachments.length }}/3</span>
+            </div>
+
+            <!-- Uploaded Thumbnails Preview Grid -->
+            <div *ngIf="attachments.length > 0" class="attachments-grid">
+              <div *ngFor="let att of attachments; let i = index" class="attachment-preview-card animate-fade-in">
+                <img [src]="att.dataUrl" [alt]="att.name" class="preview-thumbnail" />
+                <button
+                  type="button"
+                  class="btn-remove-attachment"
+                  (click)="removeAttachment(i)"
+                  title="Remove picture"
+                  aria-label="Remove picture"
+                >
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+                <span class="attachment-name" [title]="att.name">{{ att.name }}</span>
+              </div>
+            </div>
+
+            <!-- Add Picture Button (available if < 3 pictures) -->
+            <div *ngIf="attachments.length < 3" class="upload-trigger-container">
+              <input
+                #fileInput
+                type="file"
+                accept="image/*"
+                multiple
+                class="hidden-file-input"
+                (change)="onFilesSelected($event)"
+              />
+              <button
+                type="button"
+                class="btn-attach-image"
+                (click)="fileInput.click()"
+                [disabled]="isCompressingImages() || isSubmitting()"
+              >
+                <span class="material-symbols-outlined attach-icon" [class.animate-spin]="isCompressingImages()">
+                  {{ isCompressingImages() ? 'sync' : 'add_photo_alternate' }}
+                </span>
+                <span *ngIf="!isCompressingImages()">Add Screenshot / Picture ({{ 3 - attachments.length }} left)</span>
+                <span *ngIf="isCompressingImages()">Optimizing image...</span>
+              </button>
+            </div>
           </div>
 
           <!-- Diagnostics Info (Smartphone Model & Android/OS Version) -->
@@ -534,6 +586,117 @@ import {
       color: var(--text-primary);
     }
 
+    .optional-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-left: 4px;
+    }
+
+    .attachments-grid {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .attachment-preview-card {
+      position: relative;
+      width: 76px;
+      height: 76px;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      background: rgba(15, 23, 42, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .preview-thumbnail {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .btn-remove-attachment {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.75);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.15s ease;
+    }
+
+    .btn-remove-attachment:hover {
+      background: #ef4444;
+      color: #ffffff;
+    }
+
+    .btn-remove-attachment .material-symbols-outlined {
+      font-size: 13px;
+    }
+
+    .attachment-name {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.75);
+      font-size: 0.58rem;
+      color: var(--text-secondary);
+      padding: 2px 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+    }
+
+    .hidden-file-input {
+      display: none;
+    }
+
+    .btn-attach-image {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px dashed rgba(255, 255, 255, 0.18);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-attach-image:hover:not(:disabled) {
+      background: rgba(56, 189, 248, 0.08);
+      border-color: var(--primary);
+      color: var(--text-primary);
+    }
+
+    .btn-attach-image:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .attach-icon {
+      font-size: 19px;
+      color: var(--primary);
+    }
+
     .modal-actions {
       display: flex;
       align-items: center;
@@ -570,12 +733,99 @@ export class FeedbackModalComponent implements OnInit, AfterViewInit, OnDestroy 
   title: string = '';
   description: string = '';
   includeDeviceInfo: boolean = true;
+  attachments: FeedbackAttachment[] = [];
 
   readonly isSubmitting = signal<boolean>(false);
   readonly isCheckingNetwork = signal<boolean>(false);
+  readonly isCompressingImages = signal<boolean>(false);
   readonly errorMessage = signal<string>('');
 
   readonly diagnosticInfo = signal<FeedbackDeviceInfo>(this.feedbackService.getDeviceDiagnosticInfoSync());
+
+  async onFilesSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    const availableSlots = 3 - this.attachments.length;
+    if (availableSlots <= 0) return;
+
+    const filesToProcess = Array.from(input.files).slice(0, availableSlots);
+    this.isCompressingImages.set(true);
+
+    try {
+      for (const file of filesToProcess) {
+        if (!file.type.startsWith('image/')) continue;
+        const compressed = await this.compressImage(file);
+        this.attachments.push(compressed);
+      }
+    } catch (err) {
+      console.warn('Image processing failed:', err);
+    } finally {
+      this.isCompressingImages.set(false);
+      input.value = '';
+    }
+  }
+
+  removeAttachment(index: number): void {
+    if (index >= 0 && index < this.attachments.length) {
+      this.attachments.splice(index, 1);
+    }
+  }
+
+  /**
+   * Compresses image using HTML5 Canvas to max 1280px dimension & 0.82 JPEG quality.
+   * Reduces multi-megabyte photos to lightweight ~200KB-350KB payloads.
+   */
+  private compressImage(file: File): Promise<FeedbackAttachment> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1280;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve({
+              name: file.name,
+              type: file.type || 'image/jpeg',
+              size: file.size,
+              dataUrl: e.target?.result as string
+            });
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+          resolve({
+            name: file.name,
+            type: 'image/jpeg',
+            size: Math.round((dataUrl.length * 3) / 4),
+            dataUrl
+          });
+        };
+        img.onerror = () => reject(new Error('Failed to load image for compression'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  }
 
   @HostListener('document:keydown.escape')
   onEscapePress(): void {
@@ -658,7 +908,8 @@ export class FeedbackModalComponent implements OnInit, AfterViewInit, OnDestroy 
       title: this.title.trim(),
       description: this.description.trim(),
       includeDeviceInfo: true,
-      deviceInfo: info
+      deviceInfo: info,
+      attachments: [...this.attachments]
     };
 
     try {

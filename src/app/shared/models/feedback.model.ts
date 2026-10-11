@@ -16,12 +16,20 @@ export interface FeedbackDeviceInfo {
   timestamp: number;
 }
 
+export interface FeedbackAttachment {
+  name: string;
+  type: string;
+  size: number;
+  dataUrl: string; // Base64 data URL for display and transfer
+}
+
 export interface FeedbackPayload {
   category: FeedbackCategory;
   title: string;
   description: string;
   includeDeviceInfo: boolean;
   deviceInfo?: FeedbackDeviceInfo;
+  attachments?: FeedbackAttachment[];
 }
 
 export interface FeedbackSubmissionResult {

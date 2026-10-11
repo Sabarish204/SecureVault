@@ -301,6 +301,11 @@ export class FeedbackService {
       body += `- **Timestamp**: ${new Date(payload.deviceInfo.timestamp).toUTCString()}\n`;
     }
 
+    if (payload.attachments && payload.attachments.length > 0) {
+      body += `\n---\n### 📸 Attachments\n`;
+      body += `*${payload.attachments.length} screenshot(s) attached.*  \n`;
+    }
+
     body += `\n> *Submitted via SecureVault in-app feedback.*`;
     return body;
   }
@@ -371,7 +376,8 @@ export class FeedbackService {
           body: JSON.stringify({
             title: `[${payload.category}] ${payload.title.trim()}`,
             body: this.formatIssueBody(payload),
-            labels: this.getCategoryLabels(payload.category)
+            labels: this.getCategoryLabels(payload.category),
+            attachments: payload.attachments || []
           })
         });
 

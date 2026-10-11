@@ -62,6 +62,17 @@ describe('FeedbackService', () => {
     expect(resolved).toContain('Pixel 8 Pro');
   });
 
+  it('should include attachments count note in formatIssueBody when attachments present', () => {
+    const body = service.formatIssueBody({
+      ...mockPayload,
+      attachments: [
+        { name: 'screen1.png', type: 'image/png', size: 1024, dataUrl: 'data:image/png;base64,abc' }
+      ]
+    });
+    expect(body).toContain('Attachments');
+    expect(body).toContain('1 screenshot(s) attached');
+  });
+
   it('should omit diagnostics when includeDeviceInfo is false', () => {
     const body = service.formatIssueBody({
       ...mockPayload,

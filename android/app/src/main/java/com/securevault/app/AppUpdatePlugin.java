@@ -10,15 +10,24 @@ import android.provider.Settings;
 import android.util.Base64;
 import androidx.core.content.FileProvider;
 import androidx.core.content.pm.PackageInfoCompat;
+import android.Manifest;
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 import java.io.File;
 import java.io.FileOutputStream;
 
-@CapacitorPlugin(name = "AppUpdate")
+@CapacitorPlugin(
+    name = "AppUpdate",
+    permissions = {
+        @Permission(strings = { Manifest.permission.CAMERA }, alias = "camera")
+    }
+)
 public class AppUpdatePlugin extends Plugin {
 
     @PluginMethod
@@ -138,5 +147,27 @@ public class AppUpdatePlugin extends Plugin {
         } catch (Exception e) {
             call.reject("Failed to launch package installation: " + e.getMessage(), e);
         }
+    }
+
+    @PluginMethod
+    public void requestCameraPermission(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Context context = getContext();
+            if (context.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissionForAlias("camera", call, "cameraPermsCallback");
+                return;
+            }
+        }
+        JSObject ret = new JSObject();
+        ret.put("granted", true);
+        call.resolve(ret);
+    }
+
+    @PermissionCallback
+    private void cameraPermsCallback(PluginCall call) {
+        boolean granted = getPermissionState("camera") == PermissionState.GRANTED;
+        JSObject ret = new JSObject();
+        ret.put("granted", granted);
+        call.resolve(ret);
     }
 }

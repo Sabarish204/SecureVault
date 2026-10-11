@@ -1,4 +1,5 @@
 import {
+  ChangeDetectorRef,
   Component,
   ElementRef,
   EventEmitter,
@@ -11,6 +12,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { CardOcrService, CardScanResult } from '../../../core/services/card-ocr.service';
 
 export interface CardScanAutoFillData {
@@ -88,7 +90,7 @@ export interface CardScanAutoFillData {
           />
 
           <!-- Card Overlay Guide Frame -->
-          <div class="card-guide-frame" [class.scanning]="isProcessing()">
+          <div class="card-guide-frame" *ngIf="isCameraActive() || capturedImagePreview()" [class.scanning]="isProcessing()">
             <div class="corner top-left"></div>
             <div class="corner top-right"></div>
             <div class="corner bottom-left"></div>
@@ -105,11 +107,11 @@ export interface CardScanAutoFillData {
           <!-- Camera Inactive / Permission Required Fallback Overlay -->
           <div class="camera-fallback-overlay" *ngIf="!isCameraActive() && !capturedImagePreview()">
             <span class="material-symbols-outlined fallback-icon">photo_camera</span>
-            <p class="fallback-title">Camera Preview Inactive</p>
-            <p class="fallback-subtitle">Use live camera or upload photo from device</p>
+            <p class="fallback-title">Camera Permission Required</p>
+            <p class="fallback-subtitle">Allow camera access to auto-scan cards, or choose an image</p>
             <button type="button" class="btn-start-camera" (click)="startCamera()">
               <span class="material-symbols-outlined">videocam</span>
-              <span>Start Camera</span>
+              <span>Enable Camera</span>
             </button>
           </div>
         </div>
@@ -139,6 +141,19 @@ export interface CardScanAutoFillData {
               <span class="material-symbols-outlined">camera</span>
             </div>
             <span>Capture {{ activeTab() === 'FRONT' ? 'Front' : 'Back' }}</span>
+          </button>
+
+          <button
+            *ngIf="!isCameraActive() && !capturedImagePreview()"
+            type="button"
+            class="btn-shutter btn-shutter-start"
+            (click)="startCamera()"
+            [disabled]="isProcessing()"
+          >
+            <div class="shutter-inner">
+              <span class="material-symbols-outlined">videocam</span>
+            </div>
+            <span>Enable Camera</span>
           </button>
 
           <label class="btn-upload-file">
@@ -768,6 +783,7 @@ export class CardScannerModalComponent implements OnInit, OnDestroy {
   @Output() close = new EventEmitter<void>();
 
   private readonly cardOcr = inject(CardOcrService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   readonly activeTab = signal<'FRONT' | 'BACK'>('FRONT');
   readonly isCameraActive = signal<boolean>(false);
@@ -786,11 +802,17 @@ export class CardScannerModalComponent implements OnInit, OnDestroy {
   private mediaStream: MediaStream | null = null;
 
   ngOnInit(): void {
-    // Attempt camera start automatically
+    if (typeof document !== 'undefined') {
+      document.body.classList.add('modal-open');
+    }
+    // Attempt camera start automatically with permission request
     this.startCamera();
   }
 
   ngOnDestroy(): void {
+    if (typeof document !== 'undefined') {
+      document.body.classList.remove('modal-open');
+    }
     this.stopCamera();
   }
 
@@ -806,33 +828,69 @@ export class CardScannerModalComponent implements OnInit, OnDestroy {
 
   async startCamera(): Promise<void> {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      this.errorMessage.set('Camera access is not supported on this platform. Please upload a photo instead.');
+      this.cdr.markForCheck();
       return;
     }
 
     this.stopCamera();
     this.errorMessage.set('');
 
-    try {
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        },
-        audio: false
-      });
+    // If running natively on Android with Capacitor, request system camera permission first
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const nativePlugin = registerPlugin<{ requestCameraPermission(): Promise<{ granted: boolean }> }>('AppUpdate');
+        const permResult = await nativePlugin.requestCameraPermission();
+        if (!permResult?.granted) {
+          this.isCameraActive.set(false);
+          this.errorMessage.set('Camera permission denied. Please allow Camera in Android Settings or use "Upload Photo".');
+          this.cdr.markForCheck();
+          return;
+        }
+      } catch (nativeErr) {
+        console.warn('Native camera permission error:', nativeErr);
+      }
+    }
 
+    try {
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          audio: false
+        });
+      } catch {
+        // Fallback constraint if environment camera is not matched
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+      }
+
+      this.mediaStream = stream;
       this.isCameraActive.set(true);
+      this.errorMessage.set('');
 
       setTimeout(() => {
         if (this.videoElement?.nativeElement && this.mediaStream) {
-          this.videoElement.nativeElement.srcObject = this.mediaStream;
-          this.videoElement.nativeElement.play().catch(() => {});
+          const video = this.videoElement.nativeElement;
+          video.srcObject = this.mediaStream;
+          video.setAttribute('playsinline', 'true');
+          video.setAttribute('webkit-playsinline', 'true');
+          video.play().catch(err => console.warn('Video play error:', err));
+          this.cdr.markForCheck();
         }
-      }, 50);
-    } catch {
+      }, 60);
+    } catch (err: any) {
+      console.warn('Camera start error:', err);
       this.isCameraActive.set(false);
-      // Fallback cleanly to file upload if camera permission denied
+      this.errorMessage.set('Could not activate camera. Please allow camera permissions or tap "Upload Photo".');
+    } finally {
+      this.cdr.markForCheck();
     }
   }
 
@@ -842,6 +900,7 @@ export class CardScannerModalComponent implements OnInit, OnDestroy {
       this.mediaStream = null;
     }
     this.isCameraActive.set(false);
+    this.cdr.markForCheck();
   }
 
   captureSnapshot(): void {
@@ -955,6 +1014,9 @@ export class CardScannerModalComponent implements OnInit, OnDestroy {
   }
 
   onClose(): void {
+    if (typeof document !== 'undefined') {
+      document.body.classList.remove('modal-open');
+    }
     this.stopCamera();
     this.close.emit();
   }

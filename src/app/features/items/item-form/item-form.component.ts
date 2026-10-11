@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, computed, HostListener, ElementRef } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject, signal, computed, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -23,6 +23,7 @@ import {
 @Component({
   selector: 'app-item-form',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     FormsModule,
@@ -154,7 +155,7 @@ import {
 
                 <div class="options-scroll">
                   <div
-                    *ngFor="let bank of filteredBanks()"
+                    *ngFor="let bank of filteredBanks(); trackBy: trackByBankId"
                     class="bank-option-row"
                     (click)="selectBank(bank)"
                   >
@@ -426,7 +427,7 @@ import {
 
                 <div class="options-scroll">
                   <div
-                    *ngFor="let bank of filteredCardBanks()"
+                    *ngFor="let bank of filteredCardBanks(); trackBy: trackByBankId"
                     class="bank-option-row"
                     (click)="selectCardBank(bank)"
                   >
@@ -1354,6 +1355,7 @@ export class ItemFormComponent implements OnInit {
   private readonly elementRef = inject(ElementRef);
   private readonly cardDetector = inject(CardDetectorService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   readonly selectedCategory = signal<VaultCategory>('BANKING');
   readonly isEditMode = signal<boolean>(false);
@@ -1419,6 +1421,7 @@ export class ItemFormComponent implements OnInit {
 
   openCardScanner(): void {
     this.isCardScannerOpen.set(true);
+    this.cdr.markForCheck();
   }
 
   onCardScanned(data: CardScanAutoFillData): void {
@@ -1454,6 +1457,7 @@ export class ItemFormComponent implements OnInit {
     }
 
     this.isCardScannerOpen.set(false);
+    this.cdr.markForCheck();
   }
 
   private initForms(): void {
@@ -1757,5 +1761,9 @@ export class ItemFormComponent implements OnInit {
     } finally {
       this.isSubmitting.set(false);
     }
+  }
+
+  trackByBankId(_index: number, bank: IndianBank): number {
+    return bank.id;
   }
 }

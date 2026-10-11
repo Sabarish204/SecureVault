@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterModule } from '@angular/router';
 import { VaultStateService } from '../../../core/state/vault-state.service';
@@ -6,11 +6,12 @@ import { VaultStateService } from '../../../core/state/vault-state.service';
 @Component({
   selector: 'app-bottom-nav',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, RouterModule, RouterLink, RouterLinkActive],
   template: `
     <nav class="bottom-nav-container glass-panel" *ngIf="vaultState.isUnlocked()">
       <div class="bottom-nav-inner">
-        <!-- Dashboard -->
+        <!-- 1. Dashboard (Left Corner) -->
         <a
           routerLink="/dashboard"
           (click)="navigate('/dashboard', $event)"
@@ -22,19 +23,7 @@ import { VaultStateService } from '../../../core/state/vault-state.service';
           <span class="nav-label">Dashboard</span>
         </a>
 
-        <!-- All Items -->
-        <a
-          routerLink="/items"
-          (click)="navigate('/items', $event)"
-          routerLinkActive="active"
-          [routerLinkActiveOptions]="{ exact: true }"
-          class="nav-item"
-        >
-          <span class="material-symbols-outlined nav-icon">folder</span>
-          <span class="nav-label">Vault</span>
-        </a>
-
-        <!-- Add Item FAB Action -->
+        <!-- 2. Add Item FAB Action (Centered in Middle) -->
         <a
           routerLink="/items/new"
           (click)="navigate('/items/new', $event)"
@@ -48,16 +37,16 @@ import { VaultStateService } from '../../../core/state/vault-state.service';
           <span class="nav-label">Add</span>
         </a>
 
-
-        <!-- Settings -->
+        <!-- 3. Vault Records (Right Corner) -->
         <a
-          routerLink="/settings"
-          (click)="navigate('/settings', $event)"
+          routerLink="/items"
+          (click)="navigate('/items', $event)"
           routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
           class="nav-item"
         >
-          <span class="material-symbols-outlined nav-icon">settings</span>
-          <span class="nav-label">Settings</span>
+          <span class="material-symbols-outlined nav-icon">folder</span>
+          <span class="nav-label">Vault</span>
         </a>
       </div>
     </nav>

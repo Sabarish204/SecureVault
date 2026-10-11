@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -9,6 +9,7 @@ import { VaultCategory } from '../../../shared/models';
 @Component({
   selector: 'app-item-list',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, RouterModule, FormsModule, MatButtonModule],
   template: `
     <div class="item-list-wrapper animate-fade-in">
@@ -99,7 +100,7 @@ import { VaultCategory } from '../../../shared/models';
         <!-- Cards List -->
         <div *ngIf="vaultState.filteredItems().length > 0" class="items-grid">
           <a
-            *ngFor="let item of vaultState.filteredItems()"
+            *ngFor="let item of vaultState.filteredItems(); trackBy: trackById"
             [routerLink]="['/items', item.id]"
             class="item-card glass-panel"
           >
@@ -370,5 +371,9 @@ export class ItemListComponent {
       case 'DEBIT_CARD': return 'Debit';
       default: return 'Other';
     }
+  }
+
+  trackById(_index: number, item: { id: string }): string {
+    return item.id;
   }
 }

@@ -1,4 +1,6 @@
 import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   ElementRef,
   HostListener,
@@ -15,10 +17,12 @@ import { FormsModule } from '@angular/forms';
 import { VaultStateService } from '../../../core/state/vault-state.service';
 import { PwaService } from '../../../core/services/pwa.service';
 import { GlobalSearchService, GlobalSearchResult } from '../../../core/services/global-search.service';
+import { FeedbackService } from '../../../core/services/feedback.service';
 
 @Component({
   selector: 'app-header',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     RouterModule,
@@ -85,12 +89,7 @@ import { GlobalSearchService, GlobalSearchResult } from '../../../core/services/
               aria-label="Clear search"
             >
               <span class="material-symbols-outlined">close</span>
-            </button>
-
-            <!-- Desktop Shortcut Hint Chip -->
-            <span class="search-shortcut-hint" *ngIf="!globalSearch.query() && !isMobileSearchOpen()">
-              <kbd>Ctrl</kbd> <kbd>K</kbd>
-            </span>
+            </button>      
           </div>
 
           <!-- Instant Live Suggestions Categorized Dropdown -->
@@ -100,7 +99,7 @@ import { GlobalSearchService, GlobalSearchResult } from '../../../core/services/
           >
             <!-- Results grouped by category -->
             <div *ngIf="globalSearch.groupedResults().length > 0" class="dropdown-scroll-content">
-              <div *ngFor="let group of globalSearch.groupedResults()" class="result-group">
+              <div *ngFor="let group of globalSearch.groupedResults(); trackBy: trackByGroupLabel" class="result-group">
                 <div class="group-header">
                   <span class="material-symbols-outlined group-header-icon">{{ group.icon }}</span>
                   <span class="group-header-label">{{ group.label }}</span>
@@ -108,7 +107,7 @@ import { GlobalSearchService, GlobalSearchResult } from '../../../core/services/
 
                 <div class="group-items">
                   <div
-                    *ngFor="let item of group.items"
+                    *ngFor="let item of group.items; trackBy: trackByItemId"
                     class="search-result-row"
                     (click)="selectItem(item)"
                     role="button"
@@ -144,7 +143,7 @@ import { GlobalSearchService, GlobalSearchResult } from '../../../core/services/
           </div>
         </div>
 
-        <!-- Right Side: Mobile Search Trigger, Install, Status Badge & Lock Action -->
+        <!-- Right Side: Mobile Search Trigger & 3-Dots Quick Menu (All Screen Sizes) -->
         <div class="header-actions" *ngIf="!isMobileSearchOpen()">
           <!-- Mobile Search Trigger Button -->
           <button
@@ -157,34 +156,101 @@ import { GlobalSearchService, GlobalSearchResult } from '../../../core/services/
             <span class="material-symbols-outlined">search</span>
           </button>
 
-          <button
-            *ngIf="pwa.canInstall()"
-            type="button"
-            class="install-btn"
-            (click)="pwa.promptInstall()"
-            matTooltip="Install SecureVault as app"
-            aria-label="Install App"
-          >
-            <span class="material-symbols-outlined">install_mobile</span>
-            <span class="install-btn-label">Install</span>
-          </button>
+          <!-- 3-Dots Quick Actions Menu (Unified for Mobile, Tablet & Desktop) -->
+          <div class="quick-menu-container" #quickMenuRef>
+            <button
+              type="button"
+              class="quick-menu-trigger-btn"
+              (click)="toggleQuickMenu($event)"
+              [class.active]="isQuickMenuOpen()"
+              matTooltip="Options & Session"
+              aria-label="Quick Actions Menu"
+              aria-haspopup="true"
+              [attr.aria-expanded]="isQuickMenuOpen()"
+            >
+              <span class="material-symbols-outlined">more_vert</span>
+            </button>
 
-          <div class="status-indicator" [class.unlocked]="vaultState.isUnlocked()" [class.locked]="!vaultState.isUnlocked()">
-            <span class="status-dot"></span>
-            <span class="status-text">{{ vaultState.isUnlocked() ? 'UNLOCKED' : 'LOCKED' }}</span>
+            <!-- Quick Action Dropdown Menu -->
+            <div
+              class="quick-menu-dropdown glass-panel animate-fade-in"
+              *ngIf="isQuickMenuOpen()"
+              (click)="$event.stopPropagation()"
+            >
+              <!-- Menu Header Status -->
+              <div class="menu-header">
+                <div class="menu-status-pill" [class.unlocked]="vaultState.isUnlocked()">
+                  <span class="status-dot"></span>
+                  <span class="status-label">{{ vaultState.isUnlocked() ? 'Vault Unlocked' : 'Vault Locked' }}</span>
+                </div>
+                <span class="menu-cipher-tag">AES-256</span>
+              </div>
+
+              <div class="menu-divider"></div>
+
+              <!-- Action 1: Lock Vault (Immediate Logout) -->
+              <button
+                *ngIf="vaultState.isUnlocked()"
+                type="button"
+                class="menu-action-row danger-action"
+                (click)="onMenuLock()"
+              >
+                <div class="action-icon-box danger-icon-box">
+                  <span class="material-symbols-outlined">lock</span>
+                </div>
+                <div class="action-details">
+                  <span class="action-title">Lock Vault</span>
+                  <span class="action-desc">Clear keys & lock session immediately</span>
+                </div>
+              </button>
+
+              <!-- Action 2: Install Web App (when available in browser) -->
+              <button
+                *ngIf="pwa.canInstall()"
+                type="button"
+                class="menu-action-row primary-action"
+                (click)="onMenuInstall()"
+              >
+                <div class="action-icon-box primary-icon-box">
+                  <span class="material-symbols-outlined">install_mobile</span>
+                </div>
+                <div class="action-details">
+                  <span class="action-title">Install App</span>
+                  <span class="action-desc">Add to Home Screen for fast offline access</span>
+                </div>
+              </button>
+
+              <!-- Action 3: Send Feedback -->
+              <button
+                type="button"
+                class="menu-action-row"
+                (click)="onMenuFeedback()"
+              >
+                <div class="action-icon-box">
+                  <span class="material-symbols-outlined">feedback</span>
+                </div>
+                <div class="action-details">
+                  <span class="action-title">Send Feedback</span>
+                  <span class="action-desc">Report issue or share ideas</span>
+                </div>
+              </button>
+
+              <!-- Action 4: Settings -->
+              <a
+                routerLink="/settings"
+                class="menu-action-row"
+                (click)="closeQuickMenu()"
+              >
+                <div class="action-icon-box">
+                  <span class="material-symbols-outlined">settings</span>
+                </div>
+                <div class="action-details">
+                  <span class="action-title">Vault Settings</span>
+                  <span class="action-desc">Security, backups, & preferences</span>
+                </div>
+              </a>
+            </div>
           </div>
-
-          <button
-            *ngIf="vaultState.isUnlocked()"
-            type="button"
-            class="lock-btn"
-            (click)="vaultState.lockVault()"
-            matTooltip="Lock Vault immediately"
-            aria-label="Lock Vault"
-          >
-            <span class="material-symbols-outlined">lock</span>
-            <span class="lock-btn-label">Lock</span>
-          </button>
         </div>
       </div>
     </header>
@@ -615,86 +681,191 @@ import { GlobalSearchService, GlobalSearchResult } from '../../../core/services/
       margin-right: 4px;
     }
 
-    .status-indicator {
+    /* 3-Dots Quick Action Menu */
+    .quick-menu-container {
+      position: relative;
+    }
+
+    .quick-menu-trigger-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-sm);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover, &.active {
+        background: rgba(56, 189, 248, 0.15);
+        border-color: rgba(56, 189, 248, 0.4);
+        color: var(--primary);
+      }
+
+      .material-symbols-outlined {
+        font-size: 22px;
+      }
+    }
+
+    .quick-menu-dropdown {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      width: 270px;
+      max-width: 90vw;
+      background: rgba(13, 19, 33, 0.98);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: var(--radius-md);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85), 0 0 25px rgba(56, 189, 248, 0.15);
+      padding: 8px;
+      z-index: 1100;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .menu-header {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px 4px 8px;
+    }
+
+    .menu-status-pill {
+      display: inline-flex;
+      align-items: center;
       gap: 6px;
-      padding: 4px 10px;
-      border-radius: 9999px;
-      font-size: 0.72rem;
+      font-size: 0.74rem;
       font-weight: 700;
-      letter-spacing: 0.04em;
+      color: var(--text-muted);
+
+      &.unlocked {
+        color: #34d399;
+      }
     }
 
-    .status-indicator.unlocked {
-      background: rgba(34, 197, 94, 0.12);
-      border: 1px solid rgba(34, 197, 94, 0.3);
-      color: #4ade80;
-    }
-
-    .status-indicator.locked {
-      background: rgba(239, 68, 68, 0.12);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      color: #f87171;
-    }
-
-    .status-dot {
-      width: 6px;
-      height: 6px;
+    .menu-status-pill .status-dot {
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
-      background: currentColor;
-      box-shadow: 0 0 6px currentColor;
+      background: #34d399;
+      box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
     }
 
-    .install-btn {
-      background: rgba(56, 189, 248, 0.12);
-      color: var(--primary);
-      border: 1px solid rgba(56, 189, 248, 0.4);
-      border-radius: var(--radius-sm);
-      height: 38px;
-      padding: 0 12px;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.85rem;
+    .menu-cipher-tag {
+      font-size: 0.68rem;
+      font-family: var(--font-mono);
       font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 0 12px rgba(56, 189, 248, 0.15);
-      transition: all 0.2s ease;
+      padding: 2px 6px;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #38bdf8;
+      border-radius: 4px;
     }
 
-    .install-btn:hover {
-      background: rgba(56, 189, 248, 0.25);
-      border-color: var(--primary);
-      box-shadow: 0 0 16px rgba(56, 189, 248, 0.3);
-      transform: translateY(-1px);
+    .menu-divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.08);
+      margin: 4px 0;
     }
 
-    .lock-btn {
-      background: rgba(239, 68, 68, 0.12);
-      color: #f87171;
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      border-radius: var(--radius-sm);
-      height: 38px;
-      padding: 0 12px;
-      display: inline-flex;
+    .menu-action-row {
+      display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 0.85rem;
-      font-weight: 600;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      text-decoration: none;
       cursor: pointer;
-      transition: all 0.2s ease;
+      width: 100%;
+      text-align: left;
+      transition: all 0.15s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      &.danger-action:hover {
+        background: rgba(239, 68, 68, 0.12);
+
+        .action-title {
+          color: #f87171;
+        }
+      }
+
+      &.primary-action:hover {
+        background: rgba(56, 189, 248, 0.12);
+
+        .action-title {
+          color: #38bdf8;
+        }
+      }
     }
 
-    .lock-btn:hover {
-      background: rgba(239, 68, 68, 0.25);
-      border-color: rgba(239, 68, 68, 0.5);
+    .action-icon-box {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+
+      .material-symbols-outlined {
+        font-size: 18px;
+      }
+
+      &.danger-icon-box {
+        background: rgba(239, 68, 68, 0.15);
+        color: #f87171;
+      }
+
+      &.primary-icon-box {
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+      }
+    }
+
+    .action-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .action-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .action-desc {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     /* Mobile Responsive Optimizations */
     @media (max-width: 640px) {
       .header-inner {
         padding: 0 12px;
+      }
+
+      .desktop-only-action {
+        display: none !important;
       }
 
       .mobile-search-trigger-btn {
@@ -727,26 +898,22 @@ import { GlobalSearchService, GlobalSearchResult } from '../../../core/services/
         width: auto;
         max-height: calc(100dvh - 120px);
       }
-
-      .lock-btn-label, .install-btn-label {
-        display: none;
-      }
-
-      .lock-btn, .install-btn {
-        padding: 0 8px;
-      }
     }
   `]
 })
 export class AppHeaderComponent {
   @ViewChild('searchInput') searchInput?: ElementRef<HTMLInputElement>;
   @ViewChild('searchWrapper') searchWrapper?: ElementRef<HTMLDivElement>;
+  @ViewChild('quickMenuRef') quickMenuRef?: ElementRef<HTMLDivElement>;
 
   readonly vaultState = inject(VaultStateService);
   readonly pwa = inject(PwaService);
   readonly globalSearch = inject(GlobalSearchService);
+  readonly feedbackService = inject(FeedbackService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   readonly isMobileSearchOpen = signal<boolean>(false);
+  readonly isQuickMenuOpen = signal<boolean>(false);
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
@@ -754,6 +921,12 @@ export class AppHeaderComponent {
       this.globalSearch.closeDropdown();
       if (this.isMobileSearchOpen() && !this.globalSearch.query()) {
         this.isMobileSearchOpen.set(false);
+      }
+    }
+    if (this.quickMenuRef && !this.quickMenuRef.nativeElement.contains(event.target as Node)) {
+      if (this.isQuickMenuOpen()) {
+        this.isQuickMenuOpen.set(false);
+        this.cdr.markForCheck();
       }
     }
   }
@@ -771,7 +944,38 @@ export class AppHeaderComponent {
       if (this.isMobileSearchOpen()) {
         this.closeMobileSearch();
       }
+      if (this.isQuickMenuOpen()) {
+        this.closeQuickMenu();
+      }
     }
+  }
+
+  toggleQuickMenu(event?: MouseEvent): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.isQuickMenuOpen.update(v => !v);
+    this.cdr.markForCheck();
+  }
+
+  closeQuickMenu(): void {
+    this.isQuickMenuOpen.set(false);
+    this.cdr.markForCheck();
+  }
+
+  onMenuLock(): void {
+    this.closeQuickMenu();
+    this.vaultState.lockVault();
+  }
+
+  onMenuInstall(): void {
+    this.closeQuickMenu();
+    this.pwa.promptInstall();
+  }
+
+  onMenuFeedback(): void {
+    this.closeQuickMenu();
+    this.feedbackService.open();
   }
 
   onInputFocus(): void {
@@ -823,5 +1027,13 @@ export class AppHeaderComponent {
         this.selectItem(results[0]);
       }
     }
+  }
+
+  trackByGroupLabel(_index: number, group: { label: string }): string {
+    return group.label;
+  }
+
+  trackByItemId(_index: number, item: GlobalSearchResult): string {
+    return item.id;
   }
 }

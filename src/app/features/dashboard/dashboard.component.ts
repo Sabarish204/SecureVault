@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -10,6 +10,7 @@ import { VaultCategory } from '../../shared/models';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, RouterModule, FormsModule, MatButtonModule, MatChipsModule],
   template: `
     <div class="dashboard-wrapper animate-fade-in">
@@ -197,7 +198,7 @@ import { VaultCategory } from '../../shared/models';
         <!-- Items Cards List -->
         <div class="items-list" *ngIf="vaultState.filteredItems().length > 0">
           <div
-            *ngFor="let item of vaultState.filteredItems()"
+            *ngFor="let item of vaultState.filteredItems(); trackBy: trackById"
             class="item-card glass-panel"
             [routerLink]="['/items', item.id]"
           >
@@ -704,5 +705,9 @@ export class DashboardComponent {
       case 'DEBIT_CARD': return 'Debit';
       default: return 'Other';
     }
+  }
+
+  trackById(_index: number, item: { id: string }): string {
+    return item.id;
   }
 }

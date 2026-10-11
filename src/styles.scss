@@ -412,7 +412,8 @@ button, a, input, select, textarea, .touch-target {
 
 /* Modal Open: Hide bottom navigation bar so it never covers modals or submit buttons */
 body.modal-open,
-body:has(.feedback-modal-backdrop) {
+body:has(.feedback-modal-backdrop),
+body:has(.scanner-backdrop) {
   overflow: hidden !important;
 
   .bottom-nav-container,

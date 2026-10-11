@@ -1,4 +1,4 @@
-import { Component, Input, signal, inject, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MaskCardPipe } from '../../pipes/mask-card.pipe';
@@ -10,6 +10,7 @@ import { CardThemeService, CardTheme } from '../../../core/services/card-theme.s
 @Component({
   selector: 'app-card-preview',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, MaskCardPipe, MaskCvvPipe],
   template: `
     <div

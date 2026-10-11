@@ -42,6 +42,23 @@ public class AppUpdatePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void getDeviceInfo(PluginCall call) {
+        try {
+            JSObject ret = new JSObject();
+            ret.put("manufacturer", Build.MANUFACTURER != null ? Build.MANUFACTURER : "Unknown");
+            ret.put("model", Build.MODEL != null ? Build.MODEL : "Unknown");
+            ret.put("brand", Build.BRAND != null ? Build.BRAND : "Unknown");
+            ret.put("product", Build.PRODUCT != null ? Build.PRODUCT : "Unknown");
+            ret.put("device", Build.DEVICE != null ? Build.DEVICE : "Unknown");
+            ret.put("androidVersion", Build.VERSION.RELEASE != null ? Build.VERSION.RELEASE : "Unknown");
+            ret.put("sdkInt", Build.VERSION.SDK_INT);
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Failed to retrieve device information: " + e.getMessage(), e);
+        }
+    }
+
+    @PluginMethod
     public void canRequestPackageInstalls(PluginCall call) {
         try {
             Context context = getContext();

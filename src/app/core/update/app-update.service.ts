@@ -18,8 +18,19 @@ interface NativeAppVersion {
   versionName: string;
 }
 
-interface NativeAppUpdatePlugin {
+export interface NativeDeviceInfo {
+  manufacturer: string;
+  model: string;
+  brand: string;
+  product: string;
+  device: string;
+  androidVersion: string;
+  sdkInt: number;
+}
+
+export interface NativeAppUpdatePlugin {
   getAppVersion(): Promise<NativeAppVersion>;
+  getDeviceInfo?(): Promise<NativeDeviceInfo>;
   canRequestPackageInstalls(): Promise<{ canInstall: boolean }>;
   openInstallPermissionSettings(): Promise<{ opened: boolean }>;
   saveAndInstallApk(options: { base64Data: string }): Promise<{ success: boolean; path: string }>;
@@ -38,6 +49,20 @@ export class AppUpdateService {
   readonly updateAvailable = signal<boolean>(false);
   readonly currentRelease = signal<AppReleaseInfo | null>(null);
   readonly installedVersion = signal<string>('1.0.0');
+
+  /**
+   * Retrieves native hardware device model and Android version information
+   */
+  async getNativeDeviceInfo(): Promise<NativeDeviceInfo | null> {
+    if (Capacitor.isNativePlatform() && AppUpdate.getDeviceInfo) {
+      try {
+        return await AppUpdate.getDeviceInfo();
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
   readonly installedCode = signal<number>(1);
 
   readonly isModalOpen = signal<boolean>(false);

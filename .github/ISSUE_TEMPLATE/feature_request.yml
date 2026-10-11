@@ -1,0 +1,41 @@
+name: Feature Suggestion
+description: Suggest an idea or enhancement for SecureVault
+title: "[FEATURE]: "
+labels: ["enhancement", "user-suggestion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea or feature request to improve SecureVault? Let us know below!
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description & Suggestion
+      description: Explain the feature you would like to see and how it helps.
+      placeholder: Describe the idea...
+    validations:
+      required: true
+  - type: input
+    id: smartphone-model
+    attributes:
+      label: Smartphone Model (Full Name)
+      description: Exact smartphone marketing model name (e.g. Samsung Galaxy A55 5G, Google Pixel 8 Pro).
+      placeholder: e.g. Samsung Galaxy A55 5G (SM-A556B)
+    validations:
+      required: false
+  - type: input
+    id: android-version
+    attributes:
+      label: Android Version
+      description: Android OS version on your device.
+      placeholder: e.g. Android 14
+    validations:
+      required: false
+  - type: input
+    id: app-version
+    attributes:
+      label: SecureVault App Version
+      description: Installed app version (e.g. v1.0.17).
+      placeholder: e.g. v1.0.17
+    validations:
+      required: false

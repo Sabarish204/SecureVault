@@ -17,6 +17,7 @@ import { FeedbackService } from '../../../core/services/feedback.service';
 import { NetworkStatusService } from '../../../core/services/network-status.service';
 import {
   FeedbackCategory,
+  FeedbackDeviceInfo,
   FeedbackPayload,
   FeedbackSubmissionResult
 } from '../../models/feedback.model';
@@ -148,24 +149,18 @@ import {
             ></textarea>
           </div>
 
-          <!-- Diagnostics Info (Always Attached & Required) -->
-          <!-- <div class="diagnostics-toggle">
-            <label class="checkbox-container disabled-checkbox">
-              <input
-                type="checkbox"
-                [checked]="true"
-                disabled
-                name="includeDeviceInfo"
-              />
-              <span class="checkmark"></span>
+          <!-- Diagnostics Info (Smartphone Model & Android/OS Version) -->
+          <div class="diagnostics-toggle">
+            <div class="diagnostics-card">
+              <span class="material-symbols-outlined diag-icon">smartphone</span>
               <div class="diagnostics-info-text">
-                <span class="diag-title">Device diagnostics attached (Required)</span>
+                <span class="diag-title">Device Diagnostics Attached</span>
                 <span class="diag-desc">
-                  App version ({{ diagnosticInfo.appVersion }}) and platform ({{ diagnosticInfo.platform }})
+                  <strong>{{ diagnosticInfo().deviceModel }}</strong> ({{ diagnosticInfo().osVersion }}) • {{ diagnosticInfo().appVersion }}
                 </span>
               </div>
-            </label>
-          </div> -->
+            </div>
+          </div>
 
           <!-- Actions -->
           <div class="modal-actions">
@@ -495,48 +490,48 @@ import {
     }
 
     .diagnostics-toggle {
-      padding: 4px 0;
+      padding: 2px 0;
     }
 
-    .checkbox-container {
+    .diagnostics-card {
       display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      cursor: pointer;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: var(--radius-sm);
     }
 
-    .checkbox-container.disabled-checkbox {
-      cursor: default;
-      opacity: 0.9;
-    }
-
-    .checkbox-container input {
-      accent-color: var(--primary);
-      width: 18px;
-      height: 18px;
-      margin-top: 2px;
-      cursor: pointer;
-    }
-
-    .checkbox-container input:disabled {
-      cursor: default;
+    .diag-icon {
+      font-size: 24px;
+      color: var(--primary);
+      flex-shrink: 0;
     }
 
     .diagnostics-info-text {
       display: flex;
       flex-direction: column;
       gap: 2px;
+      min-width: 0;
     }
 
     .diag-title {
-      font-size: 0.82rem;
-      font-weight: 600;
+      font-size: 0.78rem;
+      font-weight: 700;
       color: var(--text-secondary);
+      letter-spacing: 0.02em;
     }
 
     .diag-desc {
       font-size: 0.74rem;
       color: var(--text-muted);
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .diag-desc strong {
+      color: var(--text-primary);
     }
 
     .modal-actions {
@@ -580,7 +575,7 @@ export class FeedbackModalComponent implements OnInit, AfterViewInit, OnDestroy 
   readonly isCheckingNetwork = signal<boolean>(false);
   readonly errorMessage = signal<string>('');
 
-  readonly diagnosticInfo = this.feedbackService.getDeviceDiagnosticInfo();
+  readonly diagnosticInfo = signal<FeedbackDeviceInfo>(this.feedbackService.getDeviceDiagnosticInfoSync());
 
   @HostListener('document:keydown.escape')
   onEscapePress(): void {
@@ -599,6 +594,10 @@ export class FeedbackModalComponent implements OnInit, AfterViewInit, OnDestroy 
     if (typeof document !== 'undefined') {
       document.body.style.overflow = 'hidden';
     }
+    // Asynchronously resolve precise native smartphone model and Android version
+    this.feedbackService.getDeviceDiagnosticInfo().then(info => {
+      this.diagnosticInfo.set(info);
+    }).catch(() => {});
   }
 
   ngAfterViewInit(): void {
@@ -645,12 +644,21 @@ export class FeedbackModalComponent implements OnInit, AfterViewInit, OnDestroy 
     this.isSubmitting.set(true);
     this.errorMessage.set('');
 
+    // Ensure we have latest native device diagnostic info with full smartphone model
+    let info = this.diagnosticInfo();
+    try {
+      info = await this.feedbackService.getDeviceDiagnosticInfo();
+      this.diagnosticInfo.set(info);
+    } catch {
+      // Keep existing diagnostic info
+    }
+
     const payload: FeedbackPayload = {
       category: this.selectedCategory,
       title: this.title.trim(),
       description: this.description.trim(),
       includeDeviceInfo: true,
-      deviceInfo: this.diagnosticInfo
+      deviceInfo: info
     };
 
     try {

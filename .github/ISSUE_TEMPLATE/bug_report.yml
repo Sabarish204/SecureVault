@@ -1,0 +1,52 @@
+name: Bug Report
+description: Report a problem or bug in SecureVault
+title: "[BUG]: "
+labels: ["bug", "user-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please provide as much detail as possible to help us investigate.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description of the Issue
+      description: A clear and concise description of what the bug is.
+      placeholder: What went wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this?
+      placeholder: |
+        1. Open Vault
+        2. Click on ...
+        3. See error
+    validations:
+      required: false
+  - type: input
+    id: smartphone-model
+    attributes:
+      label: Smartphone Model (Full Name)
+      description: Exact smartphone marketing model name and code (e.g. Samsung Galaxy A55 5G, Google Pixel 8 Pro).
+      placeholder: e.g. Samsung Galaxy A55 5G (SM-A556B)
+    validations:
+      required: true
+  - type: input
+    id: android-version
+    attributes:
+      label: Android Version
+      description: Android OS version running on the device.
+      placeholder: e.g. Android 14
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: SecureVault App Version
+      description: Installed app version (e.g. v1.0.17).
+      placeholder: e.g. v1.0.17
+    validations:
+      required: true

@@ -32,6 +32,8 @@ describe('FeedbackService', () => {
     deviceInfo: {
       appVersion: 'v1.0.4',
       platform: 'Android APK (Native)',
+      deviceModel: 'Samsung Galaxy S24 Ultra (SM-S928B)',
+      osVersion: 'Android 14 (API 34)',
       screenResolution: '412x915',
       timestamp: 1728590000000
     }
@@ -41,9 +43,23 @@ describe('FeedbackService', () => {
     const body = service.formatIssueBody(mockPayload);
     expect(body).toContain('Feature Suggestion');
     expect(body).toContain('Would love to quickly switch');
+    expect(body).toContain('Smartphone Model');
+    expect(body).toContain('Samsung Galaxy S24 Ultra');
+    expect(body).toContain('Android Version');
+    expect(body).toContain('Android 14 (API 34)');
     expect(body).toContain('App Version');
     expect(body).toContain('v1.0.4');
     expect(body).toContain('Android APK');
+  });
+
+  it('should resolve Samsung SM-A556B to Samsung Galaxy A55 5G (SM-A556B)', () => {
+    const resolved = service.resolveFullSmartphoneModel('SM-A556B', 'Samsung');
+    expect(resolved).toBe('Samsung Galaxy A55 5G (SM-A556B)');
+  });
+
+  it('should resolve Google Pixel model codes cleanly', () => {
+    const resolved = service.resolveFullSmartphoneModel('Pixel 8 Pro');
+    expect(resolved).toContain('Pixel 8 Pro');
   });
 
   it('should omit diagnostics when includeDeviceInfo is false', () => {

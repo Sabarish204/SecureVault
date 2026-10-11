@@ -102,6 +102,9 @@ jobs:
               - Auto-stretching dynamic height and clamp typography to eliminate cardholder name or bottom row clipping on mobile screens.
             * **Backup & Verification Enhancements**:
               - Detailed backup export inspection modal showing UUID, byte size, and AES-256-GCM verification.
+            * **Feedback & Diagnostics**:
+              - Added smartphone full model mapping (e.g. `Samsung Galaxy A55 5G (SM-A556B)`) and Android OS version to in-app feedback dialog and GitHub issue reports for streamlined debugging.
+              - Added structured GitHub Issue forms (.github/ISSUE_TEMPLATE) capturing full smartphone model and Android version.
 
             *Build: `#${{ github.run_number }}` • Commit: `${{ github.sha }}`*
           files: |

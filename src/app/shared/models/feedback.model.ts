@@ -10,6 +10,8 @@ export interface FeedbackCategoryOption {
 export interface FeedbackDeviceInfo {
   appVersion: string;
   platform: string;
+  deviceModel: string;
+  osVersion: string;
   screenResolution: string;
   timestamp: number;
 }
